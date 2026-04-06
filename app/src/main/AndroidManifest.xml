@@ -21,6 +21,7 @@
         <activity android:name=".auth.RegisterActivity"/>
         <activity android:name=".auth.ForgotPasswordActivity"/>
         <activity android:name=".auth.HomeActivity"/>
+        <activity android:name=".test.CrudTestActivity"/>
     </application>
 
 </manifest>

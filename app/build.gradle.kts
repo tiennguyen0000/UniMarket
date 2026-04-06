@@ -5,14 +5,12 @@ plugins {
 
 android {
     namespace = "com.example.unimarket"
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.example.unimarket"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -46,4 +44,14 @@ dependencies {
     androidTestImplementation(libs.espresso.core)
     implementation(platform("com.google.firebase:firebase-bom:34.11.0"))
     implementation("com.google.firebase:firebase-analytics")
+
+    // Supabase
+    implementation("io.github.jan-tennert.supabase:supabase-kt:1.4.4")
+    implementation("io.github.jan-tennert.supabase:postgrest-kt:1.4.4")
+
+    // HTTP Client
+    implementation("com.squareup.okhttp3:okhttp:4.11.0")
+
+    // JSON parsing
+    implementation("com.google.code.gson:gson:2.10.1")
 }
