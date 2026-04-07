@@ -1,51 +1,119 @@
 package com.example.unimarket.auth;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
-import android.widget.*;
-import androidx.appcompat.app.AppCompatActivity;
-import com.google.firebase.auth.FirebaseAuth;
+import android.view.View;
+import android.widget.ProgressBar;
+import android.widget.TextView;
 
+import androidx.appcompat.app.AppCompatActivity;
+
+import com.example.unimarket.R;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthInvalidUserException;
 
 public class ForgotPasswordActivity extends AppCompatActivity {
-    EditText etEmail;
-    Button btnReset;
-    FirebaseAuth mAuth;
+
+    private TextInputLayout tilEmail;
+    private TextInputEditText etEmail;
+    private MaterialButton btnSendReset;
+    private TextView tvBackToLogin;
+    private ProgressBar progressBar;
+
+    private FirebaseAuth mAuth;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        // Layout đơn giản tạo bằng code
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(60, 80, 60, 0);
-
-        etEmail = new EditText(this);
-        etEmail.setHint("Nhập email của bạn");
-        layout.addView(etEmail);
-
-        btnReset = new Button(this);
-        btnReset.setText("Gửi email đặt lại mật khẩu");
-        layout.addView(btnReset);
-
-        setContentView(layout);
+        setContentView(R.layout.activity_forgotpassword);
 
         mAuth = FirebaseAuth.getInstance();
 
-        btnReset.setOnClickListener(v -> {
-            String email = etEmail.getText().toString().trim();
-            if (TextUtils.isEmpty(email)) {
-                etEmail.setError("Nhập email!");
-                return;
-            }
-            mAuth.sendPasswordResetEmail(email)
-                    .addOnSuccessListener(unused ->
-                            Toast.makeText(this, "Đã gửi email! Kiểm tra hộp thư.", Toast.LENGTH_LONG).show()
-                    )
-                    .addOnFailureListener(e ->
-                            Toast.makeText(this, "Lỗi: " + e.getMessage(), Toast.LENGTH_LONG).show()
-                    );
+        initViews();
+        setupListeners();
+    }
+
+    private void initViews() {
+        tilEmail      = findViewById(R.id.tilEmail);
+        etEmail       = findViewById(R.id.etEmail);
+        btnSendReset  = findViewById(R.id.btnSendReset);
+        tvBackToLogin = findViewById(R.id.tvBackToLogin);
+        progressBar   = findViewById(R.id.progressBar);
+
+        findViewById(R.id.btnBack).setOnClickListener(v -> onBackPressed());
+    }
+
+    private void setupListeners() {
+        btnSendReset.setOnClickListener(v -> attemptSendReset());
+
+        tvBackToLogin.setOnClickListener(v -> {
+            startActivity(new Intent(this, LoginActivity.class));
+            finish();
         });
+
+        etEmail.addTextChangedListener(new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                tilEmail.setError(null);
+            }
+            @Override public void afterTextChanged(android.text.Editable s) {}
+        });
+    }
+
+    private void attemptSendReset() {
+        String email = etEmail.getText() != null ? etEmail.getText().toString().trim() : "";
+
+        if (TextUtils.isEmpty(email)) {
+            tilEmail.setError("Vui lòng nhập email");
+            return;
+        }
+        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            tilEmail.setError("Email không hợp lệ");
+            return;
+        }
+
+        setLoading(true);
+
+        mAuth.sendPasswordResetEmail(email)
+                .addOnCompleteListener(task -> {
+                    setLoading(false);
+                    if (task.isSuccessful()) {
+                        showSuccessDialog(email);
+                    } else {
+                        handleError(task.getException());
+                    }
+                });
+    }
+
+    private void handleError(Exception e) {
+        if (e instanceof FirebaseAuthInvalidUserException) {
+            tilEmail.setError("Email này chưa được đăng ký");
+        } else {
+            tilEmail.setError("Gửi email thất bại, vui lòng thử lại");
+        }
+    }
+
+    private void showSuccessDialog(String email) {
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("Email đã gửi!")
+                .setMessage("Chúng tôi đã gửi liên kết đặt lại mật khẩu đến\n" + email
+                        + "\n\nVui lòng kiểm tra hộp thư (bao gồm thư mục spam).")
+                .setPositiveButton("Về đăng nhập", (dialog, which) -> {
+                    startActivity(new Intent(this, LoginActivity.class));
+                    finish();
+                })
+                .setCancelable(false)
+                .show();
+    }
+
+    private void setLoading(boolean isLoading) {
+        progressBar.setVisibility(isLoading ? View.VISIBLE : View.GONE);
+        btnSendReset.setEnabled(!isLoading);
+        btnSendReset.setText(isLoading ? "Đang gửi..." : "Gửi liên kết đặt lại");
     }
 }
