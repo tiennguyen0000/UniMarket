@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.widget.*;
 import androidx.appcompat.app.AppCompatActivity;
+import com.example.unimarket.test.CrudTestActivity;
 import com.google.firebase.auth.FirebaseAuth;
 
 public class HomeActivity extends AppCompatActivity {
@@ -25,12 +26,20 @@ public class HomeActivity extends AppCompatActivity {
         btnLogout.setText("Đăng xuất");
         layout.addView(btnLogout);
 
+        Button btnCrudTest = new Button(this);
+        btnCrudTest.setText("Mở màn hình test CRUD");
+        layout.addView(btnCrudTest);
+
         setContentView(layout);
 
         btnLogout.setOnClickListener(v -> {
             FirebaseAuth.getInstance().signOut();
             startActivity(new Intent(this, LoginActivity.class));
             finish();
+        });
+
+        btnCrudTest.setOnClickListener(v -> {
+            startActivity(new Intent(this, CrudTestActivity.class));
         });
     }
 }
