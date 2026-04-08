@@ -7,17 +7,6 @@
     android:background="#FFFFFF"
     android:padding="24.dp">
 
-    <TextView
-        android:id="@+id/tvSkip"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Bỏ qua"
-        android:textColor="#FF7043"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
     <androidx.cardview.widget.CardView
         android:id="@+id/cardImage"
         android:layout_width="0.dp"
@@ -28,7 +17,7 @@
         app:cardElevation="0.dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tvSkip">
+        app:layout_constraintTop_toTopOf="parent">
 
         <ImageView
             android:layout_width="match_parent"
@@ -114,21 +103,6 @@
             android:text="Giá cả sinh viên, tiết kiệm tối đa"
             android:textColor="#1F1F1F"
             android:textStyle="bold" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/llDots"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="32.dp"
-        android:orientation="horizontal"
-        app:layout_constraintBottom_toTopOf="@id/btnStart"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
-
-        <View android:layout_width="24.dp" android:layout_height="8.dp" android:layout_marginEnd="8.dp" android:background="@drawable/dot_active" />
-        <View android:layout_width="8.dp" android:layout_height="8.dp" android:layout_marginEnd="8.dp" android:background="@drawable/dot_inactive" />
-        <View android:layout_width="8.dp" android:layout_height="8.dp" android:background="@drawable/dot_inactive" />
     </LinearLayout>
 
     <androidx.appcompat.widget.AppCompatButton
