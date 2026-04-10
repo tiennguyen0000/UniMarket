@@ -58,7 +58,7 @@ public class HttpApiClient {
     /**
      * GET một record bằng ID
      */
-    public <T> ApiResponse<T> getById(String tableName, Long id, Class<T> itemClass) {
+    public <T> ApiResponse<T> getById(String tableName, String id, Class<T> itemClass) {
         try {
             String url = getTableEndpoint(tableName) + "?id=eq." + id;
             Request request = buildGetRequest(url);
@@ -108,7 +108,7 @@ public class HttpApiClient {
     /**
      * DELETE một record bằng ID
      */
-    public ApiResponse<Void> delete(String tableName, Long id) {
+    public ApiResponse<Void> delete(String tableName, String id) {
         try {
             String url = getTableEndpoint(tableName) + "?id=eq." + id;
             Request request = buildDeleteRequest(url);
@@ -203,7 +203,15 @@ public class HttpApiClient {
                 return new ApiResponse<>(true, List.of(), "Success");
             }
 
-            List<T> items = gson.fromJson(body, new TypeToken<List<T>>(){}.getType());
+            // Use a Type that includes the actual item class to prevent LinkedTreeMap deserialization
+            Type listType = new TypeToken<List<T>>(){}.getType();
+            List<T> items = gson.fromJson(body, listType);
+            
+            // If items came back as LinkedTreeMap instead of the proper type, convert them
+            if (!items.isEmpty() && items.get(0) != null && !itemClass.isInstance(items.get(0))) {
+                items = gson.fromJson(body, TypeToken.getParameterized(List.class, itemClass).getType());
+            }
+            
             return new ApiResponse<>(true, items, "Success");
         } else {
             return new ApiResponse<>(false, null, "HTTP " + response.code() + ": " + body);

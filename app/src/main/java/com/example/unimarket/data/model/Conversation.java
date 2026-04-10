@@ -1,19 +1,19 @@
 package com.example.unimarket.data.model;
 
 public class Conversation {
-    private Long id;
-    private String createdAt;
+    private String id;
+    private String created_at;
 
     public Conversation() {
     }
 
-    public Conversation(Long id, String createdAt) {
+    public Conversation(String id, String created_at) {
         this.id = id;
-        this.createdAt = createdAt;
+        this.created_at = created_at;
     }
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public String getCreatedAt() { return createdAt; }
-    public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
+    public String getCreated_at() { return created_at; }
+    public void setCreated_at(String created_at) { this.created_at = created_at; }
 }

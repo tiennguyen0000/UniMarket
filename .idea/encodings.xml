@@ -35,10 +35,11 @@
     <file url="file://$PROJECT_DIR$/app/src/main/java/com/example/unimarket/data/service/WishlistService.java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/app/src/main/java/com/example/unimarket/data/service/base/BaseCrudService.java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/app/src/main/java/com/example/unimarket/data/service/base/Identifiable.java" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/app/src/main/java/com/example/unimarket/network/ApiCallback.java" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/app/src/main/java/com/example/unimarket/network/ApiClient.java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/app/src/main/java/com/example/unimarket/home/CategoryAdapter.java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/app/src/main/java/com/example/unimarket/home/HomeActivity.java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/app/src/main/java/com/example/unimarket/home/HomeUiUtils.java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/app/src/main/java/com/example/unimarket/home/ProductAdapter.java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/app/src/main/java/com/example/unimarket/network/ApiResponse.java" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/app/src/main/java/com/example/unimarket/network/SupabaseClient.java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/app/src/main/java/com/example/unimarket/test/CrudTestActivity.java" charset="UTF-8" />
   </component>
 </project>

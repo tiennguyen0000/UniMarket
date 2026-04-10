@@ -12,20 +12,11 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.unimarket.R;
-import com.example.unimarket.data.service.CartService;
-import com.example.unimarket.data.service.CategoryService;
-import com.example.unimarket.data.service.ConversationService;
-import com.example.unimarket.data.service.MessageService;
-import com.example.unimarket.data.service.NotificationService;
-import com.example.unimarket.data.service.OrderService;
-import com.example.unimarket.data.service.ProductImageService;
-import com.example.unimarket.data.service.ProductService;
-import com.example.unimarket.data.service.ReportService;
-import com.example.unimarket.data.service.ReviewService;
-import com.example.unimarket.data.service.StudentVerificationService;
-import com.example.unimarket.data.service.UserBehaviorService;
-import com.example.unimarket.data.service.UserService;
-import com.example.unimarket.data.service.WishlistService;
+import com.example.unimarket.network.SupabaseApi;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -38,6 +29,8 @@ public class CrudTestActivity extends AppCompatActivity {
     private EditText edtId;
     private TextView tvResult;
     private List<ServiceBinding> bindings;
+
+    private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,20 +59,20 @@ public class CrudTestActivity extends AppCompatActivity {
 
     private void setupBindings() {
         bindings = Arrays.asList(
-                new ServiceBinding("users", new UserService(), com.example.unimarket.data.model.User.class),
-                new ServiceBinding("categories", new CategoryService(), com.example.unimarket.data.model.Category.class),
-                new ServiceBinding("products", new ProductService(), com.example.unimarket.data.model.Product.class),
-                new ServiceBinding("carts", new CartService(), com.example.unimarket.data.model.Cart.class),
-                new ServiceBinding("conversations", new ConversationService(), com.example.unimarket.data.model.Conversation.class),
-                new ServiceBinding("messages", new MessageService(), com.example.unimarket.data.model.Message.class),
-                new ServiceBinding("notifications", new NotificationService(), com.example.unimarket.data.model.Notification.class),
-                new ServiceBinding("orders", new OrderService(), com.example.unimarket.data.model.Order.class),
-                new ServiceBinding("product_images", new ProductImageService(), com.example.unimarket.data.model.ProductImage.class),
-                new ServiceBinding("reports", new ReportService(), com.example.unimarket.data.model.Report.class),
-                new ServiceBinding("reviews", new ReviewService(), com.example.unimarket.data.model.Review.class),
-                new ServiceBinding("student_verifications", new StudentVerificationService(), com.example.unimarket.data.model.StudentVerification.class),
-                new ServiceBinding("user_behavior", new UserBehaviorService(), com.example.unimarket.data.model.UserBehavior.class),
-                new ServiceBinding("wishlist", new WishlistService(), com.example.unimarket.data.model.Wishlist.class)
+                new ServiceBinding("users", com.example.unimarket.data.model.User.class),
+                new ServiceBinding("categories", com.example.unimarket.data.model.Category.class),
+                new ServiceBinding("products", com.example.unimarket.data.model.Product.class),
+                new ServiceBinding("carts", com.example.unimarket.data.model.Cart.class),
+                new ServiceBinding("conversations", com.example.unimarket.data.model.Conversation.class),
+                new ServiceBinding("messages", com.example.unimarket.data.model.Message.class),
+                new ServiceBinding("notifications", com.example.unimarket.data.model.Notification.class),
+                new ServiceBinding("orders", com.example.unimarket.data.model.Order.class),
+                new ServiceBinding("product_images", com.example.unimarket.data.model.ProductImage.class),
+                new ServiceBinding("reports", com.example.unimarket.data.model.Report.class),
+                new ServiceBinding("reviews", com.example.unimarket.data.model.Review.class),
+                new ServiceBinding("student_verifications", com.example.unimarket.data.model.StudentVerification.class),
+                new ServiceBinding("user_behavior", com.example.unimarket.data.model.UserBehavior.class),
+                new ServiceBinding("wishlist", com.example.unimarket.data.model.Wishlist.class)
         );
     }
 
@@ -114,14 +107,33 @@ public class CrudTestActivity extends AppCompatActivity {
 
         try {
             Object model = binding.modelClass.getDeclaredConstructor().newInstance();
-            Long inputId = parseId(false);
+
+            String inputId = parseId(false);
             if (inputId != null) {
-                invokeSetter(model, "setId", Long.class, inputId);
+                setIdIfExists(model, inputId);
             }
+
             fillSampleData(model, binding.tableName);
 
-            boolean ok = (boolean) invokeMethod(binding.service, "create", new Class[]{binding.modelClass}, model);
-            appendResult("CREATE " + binding.tableName + " -> " + ok + " | " + describeObject(model));
+            String jsonBody = buildJsonBody(model, inputId != null);
+            appendResult("CREATE " + binding.tableName + " -> sending...\n" + prettyJson(jsonBody));
+
+            SupabaseApi.create(binding.tableName, jsonBody, new SupabaseApi.ApiCallback() {
+                @Override
+                public void onSuccess(String responseBody) {
+                    runOnUiThread(() ->
+                            appendResult("CREATE " + binding.tableName + " -> SUCCESS\n" + prettyJson(responseBody))
+                    );
+                }
+
+                @Override
+                public void onError(String error) {
+                    runOnUiThread(() ->
+                            appendResult("CREATE " + binding.tableName + " -> ERROR\n" + error)
+                    );
+                }
+            });
+
         } catch (Exception e) {
             showError(e);
         }
@@ -133,17 +145,28 @@ public class CrudTestActivity extends AppCompatActivity {
             return;
         }
 
-        Long id = parseId(true);
+        String id = parseId(true);
         if (id == null) {
             return;
         }
 
-        try {
-            Object item = invokeMethod(binding.service, "getById", new Class[]{Long.class}, id);
-            appendResult("READ " + binding.tableName + " id=" + id + " -> " + describeObject(item));
-        } catch (Exception e) {
-            showError(e);
-        }
+        appendResult("READ " + binding.tableName + " id=" + id + " -> sending...");
+
+        SupabaseApi.getById(binding.tableName, id, new SupabaseApi.ApiCallback() {
+            @Override
+            public void onSuccess(String responseBody) {
+                runOnUiThread(() ->
+                        appendResult("READ " + binding.tableName + " id=" + id + " -> SUCCESS\n" + prettyJson(responseBody))
+                );
+            }
+
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() ->
+                        appendResult("READ " + binding.tableName + " id=" + id + " -> ERROR\n" + error)
+                );
+            }
+        });
     }
 
     private void onUpdateItem() {
@@ -152,18 +175,34 @@ public class CrudTestActivity extends AppCompatActivity {
             return;
         }
 
-        Long id = parseId(true);
+        String id = parseId(true);
         if (id == null) {
             return;
         }
 
         try {
             Object model = binding.modelClass.getDeclaredConstructor().newInstance();
-            invokeSetter(model, "setId", Long.class, id);
             fillSampleData(model, binding.tableName + "_updated");
 
-            boolean ok = (boolean) invokeMethod(binding.service, "update", new Class[]{binding.modelClass}, model);
-            appendResult("UPDATE " + binding.tableName + " id=" + id + " -> " + ok + " | " + describeObject(model));
+            String jsonBody = buildJsonBody(model, false);
+            appendResult("UPDATE " + binding.tableName + " id=" + id + " -> sending...\n" + prettyJson(jsonBody));
+
+            SupabaseApi.update(binding.tableName, id, jsonBody, new SupabaseApi.ApiCallback() {
+                @Override
+                public void onSuccess(String responseBody) {
+                    runOnUiThread(() ->
+                            appendResult("UPDATE " + binding.tableName + " id=" + id + " -> SUCCESS\n" + prettyJson(responseBody))
+                    );
+                }
+
+                @Override
+                public void onError(String error) {
+                    runOnUiThread(() ->
+                            appendResult("UPDATE " + binding.tableName + " id=" + id + " -> ERROR\n" + error)
+                    );
+                }
+            });
+
         } catch (Exception e) {
             showError(e);
         }
@@ -175,17 +214,28 @@ public class CrudTestActivity extends AppCompatActivity {
             return;
         }
 
-        Long id = parseId(true);
+        String id = parseId(true);
         if (id == null) {
             return;
         }
 
-        try {
-            boolean ok = (boolean) invokeMethod(binding.service, "delete", new Class[]{Long.class}, id);
-            appendResult("DELETE " + binding.tableName + " id=" + id + " -> " + ok);
-        } catch (Exception e) {
-            showError(e);
-        }
+        appendResult("DELETE " + binding.tableName + " id=" + id + " -> sending...");
+
+        SupabaseApi.delete(binding.tableName, id, new SupabaseApi.ApiCallback() {
+            @Override
+            public void onSuccess(String responseBody) {
+                runOnUiThread(() ->
+                        appendResult("DELETE " + binding.tableName + " id=" + id + " -> SUCCESS\n" + prettyJson(responseBody))
+                );
+            }
+
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() ->
+                        appendResult("DELETE " + binding.tableName + " id=" + id + " -> ERROR\n" + error)
+                );
+            }
+        });
     }
 
     private void onListItems() {
@@ -194,17 +244,23 @@ public class CrudTestActivity extends AppCompatActivity {
             return;
         }
 
-        try {
-            Object result = invokeMethod(binding.service, "getAll", new Class[]{});
-            if (result instanceof List) {
-                List<?> list = (List<?>) result;
-                appendResult("LIST " + binding.tableName + " size=" + list.size() + "\n" + describeList(list));
-            } else {
-                appendResult("LIST " + binding.tableName + " -> unexpected result");
+        appendResult("LIST " + binding.tableName + " -> sending...");
+
+        SupabaseApi.getAll(binding.tableName, new SupabaseApi.ApiCallback() {
+            @Override
+            public void onSuccess(String responseBody) {
+                runOnUiThread(() ->
+                        appendResult("LIST " + binding.tableName + " -> SUCCESS\n" + prettyJson(responseBody))
+                );
             }
-        } catch (Exception e) {
-            showError(e);
-        }
+
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() ->
+                        appendResult("LIST " + binding.tableName + " -> ERROR\n" + error)
+                );
+            }
+        });
     }
 
     private void fillSampleData(Object model, String token) {
@@ -225,26 +281,50 @@ public class CrudTestActivity extends AppCompatActivity {
                     method.invoke(model, 1);
                 } else if (type == Double.class || type == double.class) {
                     method.invoke(model, 99.0);
+                } else if (type == Float.class || type == float.class) {
+                    method.invoke(model, 99.0f);
                 } else if (type == Boolean.class || type == boolean.class) {
                     method.invoke(model, true);
                 }
             } catch (Exception ignored) {
-                // Ignore unsupported setter types for quick test screen.
+                // Bỏ qua setter không hỗ trợ trong màn test nhanh.
             }
         }
     }
 
-    private Object invokeMethod(Object target, String methodName, Class<?>[] parameterTypes, Object... args) throws Exception {
-        Method method = target.getClass().getMethod(methodName, parameterTypes);
-        return method.invoke(target, args);
+    private void setIdIfExists(Object target, String value) {
+        try {
+            Method method = target.getClass().getMethod("setId", String.class);
+            method.invoke(target, value);
+            return;
+        } catch (Exception ignored) {
+        }
+
+        // Legacy fallback if String version doesn't exist
+        try {
+            Method method = target.getClass().getMethod("setId", Long.class);
+            method.invoke(target, value);
+            return;
+        } catch (Exception ignored) {
+        }
+
+        try {
+            Method method = target.getClass().getMethod("setId", long.class);
+            method.invoke(target, value);
+        } catch (Exception ignored) {
+            // Không có setId cũng không sao.
+        }
     }
 
-    private void invokeSetter(Object target, String setterName, Class<?> parameterType, Object value) throws Exception {
-        Method method = target.getClass().getMethod(setterName, parameterType);
-        method.invoke(target, value);
+    private String buildJsonBody(Object model, boolean includeId) {
+        JsonElement element = gson.toJsonTree(model);
+        if (element != null && element.isJsonObject() && !includeId) {
+            element.getAsJsonObject().remove("id");
+        }
+        return gson.toJson(element);
     }
 
-    private Long parseId(boolean required) {
+    private String parseId(boolean required) {
         String text = edtId.getText() != null ? edtId.getText().toString().trim() : "";
         if (TextUtils.isEmpty(text)) {
             if (required) {
@@ -252,13 +332,7 @@ public class CrudTestActivity extends AppCompatActivity {
             }
             return null;
         }
-
-        try {
-            return Long.parseLong(text);
-        } catch (NumberFormatException e) {
-            Toast.makeText(this, "ID phải là số", Toast.LENGTH_SHORT).show();
-            return null;
-        }
+        return text;  // UUID is a string, no need to parse as Long
     }
 
     private void appendResult(String message) {
@@ -267,74 +341,30 @@ public class CrudTestActivity extends AppCompatActivity {
         tvResult.setText(next);
     }
 
-    private String describeList(List<?> list) {
-        StringBuilder sb = new StringBuilder();
-        int index = 1;
-        for (Object item : list) {
-            sb.append(index++).append(". ").append(describeObject(item)).append("\n");
-        }
-        return sb.toString().trim();
-    }
-
-    private String describeObject(Object obj) {
-        if (obj == null) {
-            return "null";
+    private String prettyJson(String raw) {
+        if (TextUtils.isEmpty(raw)) {
+            return "(empty response)";
         }
 
-        StringBuilder sb = new StringBuilder();
-        sb.append(obj.getClass().getSimpleName()).append(" {");
-
-        Method[] methods = obj.getClass().getMethods();
-        boolean first = true;
-        for (Method method : methods) {
-            if (method.getParameterCount() != 0) {
-                continue;
-            }
-            String name = method.getName();
-            if ("getClass".equals(name)) {
-                continue;
-            }
-
-            boolean isGetter = name.startsWith("get") || name.startsWith("is");
-            if (!isGetter) {
-                continue;
-            }
-
-            try {
-                Object value = method.invoke(obj);
-                String fieldName;
-                if (name.startsWith("get")) {
-                    fieldName = name.substring(3);
-                } else {
-                    fieldName = name.substring(2);
-                }
-
-                if (!first) {
-                    sb.append(", ");
-                }
-                sb.append(fieldName).append("=").append(String.valueOf(value));
-                first = false;
-            } catch (Exception ignored) {
-                // Ignore getter failures and continue rendering.
-            }
+        try {
+            JsonElement jsonElement = JsonParser.parseString(raw);
+            return gson.toJson(jsonElement);
+        } catch (Exception e) {
+            return raw;
         }
-
-        sb.append("}");
-        return sb.toString();
     }
 
     private void showError(Exception e) {
-        appendResult("ERROR: " + e.getMessage());
+        Throwable cause = e.getCause() != null ? e.getCause() : e;
+        appendResult("ERROR: " + (cause.getMessage() != null ? cause.getMessage() : cause.toString()));
     }
 
     private static class ServiceBinding {
         private final String tableName;
-        private final Object service;
         private final Class<?> modelClass;
 
-        ServiceBinding(String tableName, Object service, Class<?> modelClass) {
+        ServiceBinding(String tableName, Class<?> modelClass) {
             this.tableName = tableName;
-            this.service = service;
             this.modelClass = modelClass;
         }
     }

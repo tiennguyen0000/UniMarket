@@ -1,31 +1,31 @@
 package com.example.unimarket.data.model;
 
 public class Message {
-    private Long id;
-    private Long conversationId;
-    private Long senderId;
+    private String id;
+    private String conversation_id;
+    private String sender_id;
     private String content;
-    private String createdAt;
+    private String created_at;
 
     public Message() {
     }
 
-    public Message(Long id, Long conversationId, Long senderId, String content, String createdAt) {
+    public Message(String id, String conversation_id, String sender_id, String content, String created_at) {
         this.id = id;
-        this.conversationId = conversationId;
-        this.senderId = senderId;
+        this.conversation_id = conversation_id;
+        this.sender_id = sender_id;
         this.content = content;
-        this.createdAt = createdAt;
+        this.created_at = created_at;
     }
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public Long getConversationId() { return conversationId; }
-    public void setConversationId(Long conversationId) { this.conversationId = conversationId; }
-    public Long getSenderId() { return senderId; }
-    public void setSenderId(Long senderId) { this.senderId = senderId; }
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
+    public String getConversation_id() { return conversation_id; }
+    public void setConversation_id(String conversation_id) { this.conversation_id = conversation_id; }
+    public String getSender_id() { return sender_id; }
+    public void setSender_id(String sender_id) { this.sender_id = sender_id; }
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
-    public String getCreatedAt() { return createdAt; }
-    public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
+    public String getCreated_at() { return created_at; }
+    public void setCreated_at(String created_at) { this.created_at = created_at; }
 }

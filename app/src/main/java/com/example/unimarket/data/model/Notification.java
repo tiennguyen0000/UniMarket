@@ -1,31 +1,31 @@
 package com.example.unimarket.data.model;
 
 public class Notification {
-    private Long id;
-    private Long userId;
+    private String id;
+    private String user_id;
     private String content;
-    private boolean read;
-    private String createdAt;
+    private boolean is_read;
+    private String created_at;
 
     public Notification() {
     }
 
-    public Notification(Long id, Long userId, String content, boolean read, String createdAt) {
+    public Notification(String id, String user_id, String content, boolean is_read, String created_at) {
         this.id = id;
-        this.userId = userId;
+        this.user_id = user_id;
         this.content = content;
-        this.read = read;
-        this.createdAt = createdAt;
+        this.is_read = is_read;
+        this.created_at = created_at;
     }
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public Long getUserId() { return userId; }
-    public void setUserId(Long userId) { this.userId = userId; }
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
+    public String getUser_id() { return user_id; }
+    public void setUser_id(String user_id) { this.user_id = user_id; }
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
-    public boolean isRead() { return read; }
-    public void setRead(boolean read) { this.read = read; }
-    public String getCreatedAt() { return createdAt; }
-    public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
+    public boolean isRead() { return is_read; }
+    public void setIs_read(boolean is_read) { this.is_read = is_read; }
+    public String getCreated_at() { return created_at; }
+    public void setCreated_at(String created_at) { this.created_at = created_at; }
 }

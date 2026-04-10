@@ -1,31 +1,31 @@
 package com.example.unimarket.data.model;
 
 public class UserBehavior {
-    private Long id;
-    private Long userId;
-    private Long productId;
+    private String id;
+    private String user_id;
+    private String product_id;
     private String action;
-    private String createdAt;
+    private String created_at;
 
     public UserBehavior() {
     }
 
-    public UserBehavior(Long id, Long userId, Long productId, String action, String createdAt) {
+    public UserBehavior(String id, String user_id, String product_id, String action, String created_at) {
         this.id = id;
-        this.userId = userId;
-        this.productId = productId;
+        this.user_id = user_id;
+        this.product_id = product_id;
         this.action = action;
-        this.createdAt = createdAt;
+        this.created_at = created_at;
     }
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public Long getUserId() { return userId; }
-    public void setUserId(Long userId) { this.userId = userId; }
-    public Long getProductId() { return productId; }
-    public void setProductId(Long productId) { this.productId = productId; }
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
+    public String getUser_id() { return user_id; }
+    public void setUser_id(String user_id) { this.user_id = user_id; }
+    public String getProduct_id() { return product_id; }
+    public void setProduct_id(String product_id) { this.product_id = product_id; }
     public String getAction() { return action; }
     public void setAction(String action) { this.action = action; }
-    public String getCreatedAt() { return createdAt; }
-    public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
+    public String getCreated_at() { return created_at; }
+    public void setCreated_at(String created_at) { this.created_at = created_at; }
 }

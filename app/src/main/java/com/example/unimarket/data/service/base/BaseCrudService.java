@@ -4,16 +4,20 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 public abstract class BaseCrudService<T> implements Identifiable<T> {
-    private final Map<Long, T> store = new LinkedHashMap<>();
-    private long nextId = 1L;
+    private final Map<String, T> store = new LinkedHashMap<>();
+
+    protected abstract String getTableName();
+
+    protected abstract Class<T> getModelClass();
 
     public synchronized List<T> getAll() {
         return new ArrayList<>(store.values());
     }
 
-    public synchronized T getById(Long id) {
+    public synchronized T getById(String id) {
         if (id == null) {
             return null;
         }
@@ -25,12 +29,11 @@ public abstract class BaseCrudService<T> implements Identifiable<T> {
             return false;
         }
 
-        Long id = getId(item);
-        if (id == null) {
-            id = nextId++;
+        String id = getId(item);
+        if (id == null || id.isEmpty()) {
+            // Generate UUID if not provided
+            id = UUID.randomUUID().toString();
             setId(item, id);
-        } else if (id >= nextId) {
-            nextId = id + 1;
         }
 
         store.put(id, item);
@@ -42,7 +45,7 @@ public abstract class BaseCrudService<T> implements Identifiable<T> {
             return false;
         }
 
-        Long id = getId(item);
+        String id = getId(item);
         if (id == null || !store.containsKey(id)) {
             return false;
         }
@@ -51,7 +54,7 @@ public abstract class BaseCrudService<T> implements Identifiable<T> {
         return true;
     }
 
-    public synchronized boolean delete(Long id) {
+    public synchronized boolean delete(String id) {
         if (id == null) {
             return false;
         }

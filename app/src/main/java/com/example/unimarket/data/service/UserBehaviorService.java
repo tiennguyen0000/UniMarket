@@ -5,12 +5,12 @@ import com.example.unimarket.data.service.base.BaseCrudService;
 
 public class UserBehaviorService extends BaseCrudService<UserBehavior> {
     @Override
-    public Long getId(UserBehavior item) {
+    public String getId(UserBehavior item) {
         return item != null ? item.getId() : null;
     }
 
     @Override
-    public void setId(UserBehavior item, Long id) {
+    public void setId(UserBehavior item, String id) {
         if (item != null) {
             item.setId(id);
         }

@@ -5,12 +5,12 @@ import com.example.unimarket.data.service.base.BaseCrudService;
 
 public class ProductImageService extends BaseCrudService<ProductImage> {
     @Override
-    public Long getId(ProductImage item) {
+    public String getId(ProductImage item) {
         return item != null ? item.getId() : null;
     }
 
     @Override
-    public void setId(ProductImage item, Long id) {
+    public void setId(ProductImage item, String id) {
         if (item != null) {
             item.setId(id);
         }

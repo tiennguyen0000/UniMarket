@@ -1,35 +1,35 @@
 package com.example.unimarket.data.model;
 
 public class StudentVerification {
-    private Long id;
-    private Long userId;
+    private String id;
+    private String user_id;
     private String method;
     private String status;
-    private String proofUrl;
-    private String createdAt;
+    private String proof_url;
+    private String created_at;
 
     public StudentVerification() {
     }
 
-    public StudentVerification(Long id, Long userId, String method, String status, String proofUrl, String createdAt) {
+    public StudentVerification(String id, String user_id, String method, String status, String proof_url, String created_at) {
         this.id = id;
-        this.userId = userId;
+        this.user_id = user_id;
         this.method = method;
         this.status = status;
-        this.proofUrl = proofUrl;
-        this.createdAt = createdAt;
+        this.proof_url = proof_url;
+        this.created_at = created_at;
     }
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public Long getUserId() { return userId; }
-    public void setUserId(Long userId) { this.userId = userId; }
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
+    public String getUser_id() { return user_id; }
+    public void setUser_id(String user_id) { this.user_id = user_id; }
     public String getMethod() { return method; }
     public void setMethod(String method) { this.method = method; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
-    public String getProofUrl() { return proofUrl; }
-    public void setProofUrl(String proofUrl) { this.proofUrl = proofUrl; }
-    public String getCreatedAt() { return createdAt; }
-    public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
+    public String getProof_url() { return proof_url; }
+    public void setProof_url(String proof_url) { this.proof_url = proof_url; }
+    public String getCreated_at() { return created_at; }
+    public void setCreated_at(String created_at) { this.created_at = created_at; }
 }

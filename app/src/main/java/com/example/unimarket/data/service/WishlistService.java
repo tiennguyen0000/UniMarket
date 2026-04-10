@@ -5,12 +5,12 @@ import com.example.unimarket.data.service.base.BaseCrudService;
 
 public class WishlistService extends BaseCrudService<Wishlist> {
     @Override
-    public Long getId(Wishlist item) {
+    public String getId(Wishlist item) {
         return item != null ? item.getId() : null;
     }
 
     @Override
-    public void setId(Wishlist item, Long id) {
+    public void setId(Wishlist item, String id) {
         if (item != null) {
             item.setId(id);
         }

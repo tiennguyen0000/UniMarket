@@ -1,27 +1,27 @@
 package com.example.unimarket.data.model;
 
 public class Wishlist {
-    private Long id;
-    private Long userId;
-    private Long productId;
-    private String createdAt;
+    private String id;
+    private String user_id;
+    private String product_id;
+    private String created_at;
 
     public Wishlist() {
     }
 
-    public Wishlist(Long id, Long userId, Long productId, String createdAt) {
+    public Wishlist(String id, String user_id, String product_id, String created_at) {
         this.id = id;
-        this.userId = userId;
-        this.productId = productId;
-        this.createdAt = createdAt;
+        this.user_id = user_id;
+        this.product_id = product_id;
+        this.created_at = created_at;
     }
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public Long getUserId() { return userId; }
-    public void setUserId(Long userId) { this.userId = userId; }
-    public Long getProductId() { return productId; }
-    public void setProductId(Long productId) { this.productId = productId; }
-    public String getCreatedAt() { return createdAt; }
-    public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
+    public String getUser_id() { return user_id; }
+    public void setUser_id(String user_id) { this.user_id = user_id; }
+    public String getProduct_id() { return product_id; }
+    public void setProduct_id(String product_id) { this.product_id = product_id; }
+    public String getCreated_at() { return created_at; }
+    public void setCreated_at(String created_at) { this.created_at = created_at; }
 }

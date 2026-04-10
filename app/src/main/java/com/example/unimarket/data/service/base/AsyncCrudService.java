@@ -58,7 +58,7 @@ public class AsyncCrudService {
         );
     }
 
-    public static <T> void getById(String table, Long id, Class<T> cls, ItemCallback<T> cb) {
+    public static <T> void getById(String table, String id, Class<T> cls, ItemCallback<T> cb) {
         NetworkExecutor.execute(
                 () -> {
                     ApiResponse<T> r = client.getById(table, id, cls);
@@ -139,7 +139,7 @@ public class AsyncCrudService {
         );
     }
 
-    public static void delete(String table, Long id, BooleanCallback cb) {
+    public static void delete(String table, String id, BooleanCallback cb) {
         NetworkExecutor.execute(
                 () -> {
                     ApiResponse<Void> r = client.delete(table, id);

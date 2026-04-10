@@ -1,23 +1,23 @@
 package com.example.unimarket.data.model;
 
 public class Category {
-    private Long id;
+    private String id;
     private String name;
-    private Long parentId;
+    private String parent_id;
 
     public Category() {
     }
 
-    public Category(Long id, String name, Long parentId) {
+    public Category(String id, String name, String parent_id) {
         this.id = id;
         this.name = name;
-        this.parentId = parentId;
+        this.parent_id = parent_id;
     }
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
-    public Long getParentId() { return parentId; }
-    public void setParentId(Long parentId) { this.parentId = parentId; }
+    public String getParent_id() { return parent_id; }
+    public void setParent_id(String parent_id) { this.parent_id = parent_id; }
 }

@@ -5,12 +5,12 @@ import com.example.unimarket.data.service.base.BaseCrudService;
 
 public class NotificationService extends BaseCrudService<Notification> {
     @Override
-    public Long getId(Notification item) {
+    public String getId(Notification item) {
         return item != null ? item.getId() : null;
     }
 
     @Override
-    public void setId(Notification item, Long id) {
+    public void setId(Notification item, String id) {
         if (item != null) {
             item.setId(id);
         }

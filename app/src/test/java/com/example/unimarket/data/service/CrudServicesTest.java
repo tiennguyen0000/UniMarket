@@ -49,30 +49,30 @@ public class CrudServicesTest {
         for (Case c : cases) {
             Object item = c.modelClass.getDeclaredConstructor().newInstance();
 
-            boolean created = (boolean) call(c.service, "create", new Class[]{c.modelClass}, item);
+            boolean created = (boolean) call(c.service, "create", new Class[]{Object.class}, item);
             assertTrue("create() failed for " + c.service.getClass().getSimpleName(), created);
 
             Method getId = c.modelClass.getMethod("getId");
-            Long id = (Long) getId.invoke(item);
+            String id = (String) getId.invoke(item);
             assertNotNull("ID should be generated for " + c.service.getClass().getSimpleName(), id);
 
-            Object found = call(c.service, "getById", new Class[]{Long.class}, id);
+            Object found = call(c.service, "getById", new Class[]{String.class}, id);
             assertNotNull("getById() returned null for " + c.service.getClass().getSimpleName(), found);
 
             Object updatedItem = c.modelClass.getDeclaredConstructor().newInstance();
-            Method setId = c.modelClass.getMethod("setId", Long.class);
+            Method setId = c.modelClass.getMethod("setId", String.class);
             setId.invoke(updatedItem, id);
 
-            boolean updated = (boolean) call(c.service, "update", new Class[]{c.modelClass}, updatedItem);
+            boolean updated = (boolean) call(c.service, "update", new Class[]{Object.class}, updatedItem);
             assertTrue("update() failed for " + c.service.getClass().getSimpleName(), updated);
 
             List<?> all = (List<?>) call(c.service, "getAll", new Class[]{});
             assertTrue("getAll() should contain at least one row for " + c.service.getClass().getSimpleName(), all.size() >= 1);
 
-            boolean deleted = (boolean) call(c.service, "delete", new Class[]{Long.class}, id);
+            boolean deleted = (boolean) call(c.service, "delete", new Class[]{String.class}, id);
             assertTrue("delete() failed for " + c.service.getClass().getSimpleName(), deleted);
 
-            Object afterDelete = call(c.service, "getById", new Class[]{Long.class}, id);
+            Object afterDelete = call(c.service, "getById", new Class[]{String.class}, id);
             assertEquals("Row should not exist after delete for " + c.service.getClass().getSimpleName(), null, afterDelete);
         }
     }

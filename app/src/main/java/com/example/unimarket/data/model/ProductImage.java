@@ -1,23 +1,23 @@
 package com.example.unimarket.data.model;
 
 public class ProductImage {
-    private Long id;
-    private Long productId;
-    private String imageUrl;
+    private String id;
+    private String product_id;
+    private String image_url;
 
     public ProductImage() {
     }
 
-    public ProductImage(Long id, Long productId, String imageUrl) {
+    public ProductImage(String id, String product_id, String image_url) {
         this.id = id;
-        this.productId = productId;
-        this.imageUrl = imageUrl;
+        this.product_id = product_id;
+        this.image_url = image_url;
     }
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public Long getProductId() { return productId; }
-    public void setProductId(Long productId) { this.productId = productId; }
-    public String getImageUrl() { return imageUrl; }
-    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
+    public String getProduct_id() { return product_id; }
+    public void setProduct_id(String product_id) { this.product_id = product_id; }
+    public String getImage_url() { return image_url; }
+    public void setImage_url(String image_url) { this.image_url = image_url; }
 }

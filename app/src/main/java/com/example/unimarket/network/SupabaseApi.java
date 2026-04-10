@@ -69,7 +69,7 @@ public class SupabaseApi {
     /**
      * GET by ID
      */
-    public static void getById(String tableName, Long id, ApiCallback callback) {
+    public static void getById(String tableName, String id, ApiCallback callback) {
         String url = Constants.SUPABASE_URL + "/rest/v1/" + tableName + "?id=eq." + id;
 
         Request request = new Request.Builder()
@@ -152,7 +152,7 @@ public class SupabaseApi {
     /**
      * PATCH - Cập nhật record
      */
-    public static void update(String tableName, Long id, String jsonBody, ApiCallback callback) {
+    public static void update(String tableName, String id, String jsonBody, ApiCallback callback) {
         String url = Constants.SUPABASE_URL + "/rest/v1/" + tableName + "?id=eq." + id;
 
         RequestBody body = RequestBody.create(
@@ -197,7 +197,7 @@ public class SupabaseApi {
     /**
      * DELETE
      */
-    public static void delete(String tableName, Long id, ApiCallback callback) {
+    public static void delete(String tableName, String id, ApiCallback callback) {
         String url = Constants.SUPABASE_URL + "/rest/v1/" + tableName + "?id=eq." + id;
 
         Request request = new Request.Builder()
