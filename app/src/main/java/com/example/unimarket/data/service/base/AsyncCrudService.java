@@ -31,6 +31,33 @@ public class AsyncCrudService {
         void onError(String error);
     }
 
+    public static <T> void getWithFilter(String table, String column, String value, Class<T> cls, ListCallback<T> cb) {
+        NetworkExecutor.execute(
+                () -> {
+                    ApiResponse<List<T>> r = client.getWithFilter(table, column, value, cls);
+                    if (!r.isSuccess()) {
+                        throw new Exception(r.getMessage() != null ? r.getMessage() : "Unknown error");
+                    }
+                    return r.getData() != null ? r.getData() : new ArrayList<>();
+                },
+                new NetworkExecutor.NetworkCallback<List<T>>() {
+                    @Override
+                    public void onSuccess(List<T> data) {
+                        if (cb != null) {
+                            cb.onSuccess(data);
+                        }
+                    }
+                    @Override
+                    public void onError(Exception e) {
+                        Log.e(TAG, "Error in getWithFilter", e);
+                        if (cb != null) {
+                            cb.onError(e.getMessage());
+                        }
+                    }
+                }
+        );
+    }
+
     public static <T> void getAll(String table, Class<T> cls, ListCallback<T> cb) {
         NetworkExecutor.execute(
                 () -> {
@@ -80,6 +107,29 @@ public class AsyncCrudService {
                         if (cb != null) {
                             cb.onError(e.getMessage());
                         }
+                    }
+                }
+        );
+    }
+
+    public static <T> void upsert(String table, T item, Class<T> cls, ItemCallback<T> cb) {
+        NetworkExecutor.execute(
+                () -> {
+                    ApiResponse<T> r = client.upsert(table, item, cls);
+                    if (!r.isSuccess()) {
+                        throw new Exception(r.getMessage() != null ? r.getMessage() : "Unknown error");
+                    }
+                    return r.getData();
+                },
+                new NetworkExecutor.NetworkCallback<T>() {
+                    @Override
+                    public void onSuccess(T data) {
+                        if (cb != null) cb.onSuccess(data);
+                    }
+                    @Override
+                    public void onError(Exception e) {
+                        Log.e(TAG, "Error in upsert", e);
+                        if (cb != null) cb.onError(e.getMessage());
                     }
                 }
         );

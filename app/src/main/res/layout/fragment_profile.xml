@@ -51,6 +51,15 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:text="Lưu" />
+
+        <Button
+            android:id="@+id/btnLogout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:backgroundTint="#FEE4E2"
+            android:text="Đăng xuất"
+            android:textColor="#D92D20" />
     </LinearLayout>
 
 </ScrollView>

@@ -41,6 +41,7 @@ public class Controller extends AppCompatActivity {
 
 		initViews();
 
+        // NavHostFragment (include fragment Home - Search - Order - Profile)
 		NavHostFragment navHostFragment = (NavHostFragment) getSupportFragmentManager()
 				.findFragmentById(R.id.controllerNavHost);
 
@@ -50,10 +51,13 @@ public class Controller extends AppCompatActivity {
 
 		navController = navHostFragment.getNavController();
 		setupClicks();
+
+
 		navController.addOnDestinationChangedListener((controller, destination, arguments) ->
 				updateTabSelection(destination)
 		);
 
+        // Setup original tab selections
 		NavDestination currentDestination = navController.getCurrentDestination();
 		if (currentDestination != null) {
 			updateTabSelection(currentDestination);
@@ -61,17 +65,20 @@ public class Controller extends AppCompatActivity {
 	}
 
 	private void initViews() {
+        // Tab
 		tabHome = findViewById(R.id.tabHome);
 		tabSearch = findViewById(R.id.tabSearch);
 		tabOrders = findViewById(R.id.tabOrders);
 		tabProfile = findViewById(R.id.tabProfile);
 
+        // Icon
 		ivTabHome = findViewById(R.id.ivTabHome);
 		ivTabSearch = findViewById(R.id.ivTabSearch);
 		ivTabOrders = findViewById(R.id.ivTabOrders);
 		ivTabProfile = findViewById(R.id.ivTabProfile);
 		imageViewMenu = findViewById(R.id.imageViewMenu);
 
+        // Text
 		tvTabHome = findViewById(R.id.tvTabHome);
 		tvTabSearch = findViewById(R.id.tvTabSearch);
 		tvTabOrders = findViewById(R.id.tvTabOrders);

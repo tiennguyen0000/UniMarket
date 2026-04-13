@@ -11,13 +11,19 @@ import java.util.concurrent.Executors;
  * và post results về main thread
  */
 public class NetworkExecutor {
+    // 4 workers run on background thread
     private static final ExecutorService executor = Executors.newFixedThreadPool(4);
+    // Main thread handler (grant to access UI)
     private static final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     /**
      * Chạy task trên background thread
      */
     public static <T> void execute(NetworkTask<T> task, NetworkCallback<T> callback) {
+        /*
+        * NetworkTask<T>: interface define task
+        * NetworkCallback<T>: interface define callback
+        * */
         executor.execute(() -> {
             try {
                 T result = task.execute();

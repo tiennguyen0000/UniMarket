@@ -154,7 +154,7 @@
             android:layout_width="match_parent"
             android:layout_height="52dp"
             android:layout_marginBottom="32dp"
-            android:text="Đăng nhập bằng Google"
+            android:text="@string/auth_continue_with_google"
             android:textColor="#1A1A1A"
             android:textSize="14sp"
             app:backgroundTint="@color/white"

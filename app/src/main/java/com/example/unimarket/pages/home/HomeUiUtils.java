@@ -34,23 +34,25 @@ public final class HomeUiUtils {
             return R.drawable.laptop;
         }
 
-        String normalized = categoryName.toLowerCase(Locale.ROOT);
+        String n = categoryName.toLowerCase(Locale.ROOT);
 
-        if (normalized.contains("laptop")) {
+        if (n.contains("laptop") || n.contains("máy tính") || n.contains("may tinh")) {
             return R.drawable.laptop;
         }
-        if (normalized.contains("dien") || normalized.contains("elect")) {
-            return R.drawable.electronic;
-        }
-        if (normalized.contains("sach") || normalized.contains("book")) {
-            return R.drawable.book;
-        }
-        if (normalized.contains("dienthoai") || normalized.contains("phones")) {
+        if (n.contains("điện thoại") || n.contains("dien thoai") || n.contains("phone") || n.contains("mobile")) {
             return R.drawable.phone;
         }
+        if (n.contains("sách") || n.contains("sach") || n.contains("book") || n.contains("giáo trình") || n.contains("giao trinh")) {
+            return R.drawable.book;
+        }
+        if (n.contains("điện tử") || n.contains("dien tu") || n.contains("elect") || n.contains("âm thanh") || n.contains("am thanh") || n.contains("tai nghe")) {
+            return R.drawable.electronic;
+        }
+        if (n.contains("phụ kiện") || n.contains("phu kien") || n.contains("thể thao") || n.contains("the thao") || n.contains("nhà cửa") || n.contains("nha cua") || n.contains("văn phòng") || n.contains("van phong") || n.contains("nhựa")) {
+            return R.drawable.shopping_cart;
+        }
 
-
-        return R.drawable.laptop;
+        return R.drawable.shopping_cart;
     }
 
     public static int colorForCategoryName(String categoryName) {
@@ -58,22 +60,33 @@ public final class HomeUiUtils {
             return 0xFFEAF0FF;
         }
 
-        String normalized = categoryName.toLowerCase(Locale.ROOT);
-        if (normalized.contains("laptop")) {
+        String n = categoryName.toLowerCase(Locale.ROOT);
+
+        if (n.contains("laptop") || n.contains("máy tính") || n.contains("may tinh")) {
             return 0xFFEAF0FF;
         }
-        if (normalized.contains("dien") || normalized.contains("elect")) {
-            return 0xFFFFF2E8;
+        if (n.contains("điện thoại") || n.contains("dien thoai") || n.contains("phone")) {
+            return 0xFFFFF0F3;
         }
-        if (normalized.contains("sach") || normalized.contains("book")) {
+        if (n.contains("sách") || n.contains("sach") || n.contains("book") || n.contains("giáo trình") || n.contains("giao trinh")) {
             return 0xFFE9F8EE;
         }
-        if (normalized.contains("pham") || normalized.contains("nhu yeu")) {
+        if (n.contains("điện tử") || n.contains("dien tu") || n.contains("elect") || n.contains("âm thanh") || n.contains("am thanh")) {
+            return 0xFFFFF2E8;
+        }
+        if (n.contains("phụ kiện") || n.contains("phu kien")) {
             return 0xFFF5EEFF;
         }
-        if (normalized.contains("phu kien")) {
-            return 0xFFF2F4F7;
+        if (n.contains("thể thao") || n.contains("the thao")) {
+            return 0xFFFFFBE6;
         }
+        if (n.contains("nhà cửa") || n.contains("nha cua")) {
+            return 0xFFE8F5E9;
+        }
+        if (n.contains("văn phòng") || n.contains("van phong")) {
+            return 0xFFE3F2FD;
+        }
+
         return 0xFFF2F4F7;
     }
 
@@ -91,13 +104,13 @@ public final class HomeUiUtils {
         if (!TextUtils.isEmpty(condition)) {
             String normalized = condition.toLowerCase(Locale.ROOT);
             if (normalized.contains("new")) {
-                return "Hang moi";
+                return "Hàng mới";
             }
             if (normalized.contains("used")) {
-                return "Da qua su dung";
+                return "Đã qua sử dụng";
             }
             if (normalized.contains("good")) {
-                return "Tinh trang tot";
+                return "Tình trạng tốt";
             }
             return condition;
         }
@@ -106,6 +119,6 @@ public final class HomeUiUtils {
             return status;
         }
 
-        return "San pham";
+        return "Sản phẩm";
     }
 }

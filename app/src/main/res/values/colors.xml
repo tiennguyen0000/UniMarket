@@ -2,4 +2,10 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="primary">#1A428A</color>
+    <color name="text_primary">#1F1F1F</color>
+    <color name="text_secondary">#757575</color>
+    <color name="bg_card_light">#F5F9FF</color>
+    <color name="dot_active">#1A428A</color>
+    <color name="dot_inactive">#E0E0E0</color>
 </resources>

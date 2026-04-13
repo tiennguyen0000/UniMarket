@@ -21,6 +21,8 @@ import androidx.recyclerview.widget.SimpleItemAnimator;
 import com.bumptech.glide.Glide;
 import com.example.unimarket.R;
 import com.example.unimarket.data.model.Category;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.example.unimarket.data.model.Product;
 import com.example.unimarket.data.model.ProductImage;
 import com.example.unimarket.data.service.base.AsyncCrudService;
@@ -110,19 +112,31 @@ public class HomeFragment extends Fragment {
         String userName = null;
         String userAvatarUrl = null;
 
-        Bundle args = getArguments();
-        if (args != null) {
-            userName = args.getString("user_name");
-            userAvatarUrl = args.getString("user_avatar");
+        // Ưu tiên lấy từ Firebase Auth (luôn có sau khi đăng nhập)
+        FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (firebaseUser != null) {
+            userName = firebaseUser.getDisplayName();
+            userAvatarUrl = firebaseUser.getPhotoUrl() != null
+                    ? firebaseUser.getPhotoUrl().toString() : null;
         }
 
+        // Fallback: đọc từ Fragment args hoặc Activity Intent
+        if (TextUtils.isEmpty(userName)) {
+            Bundle args = getArguments();
+            if (args != null) {
+                userName = args.getString("user_name");
+                if (userAvatarUrl == null) userAvatarUrl = args.getString("user_avatar");
+            }
+        }
         if (TextUtils.isEmpty(userName) && requireActivity().getIntent() != null) {
             userName = requireActivity().getIntent().getStringExtra("user_name");
-            userAvatarUrl = requireActivity().getIntent().getStringExtra("user_avatar");
+            if (userAvatarUrl == null)
+                userAvatarUrl = requireActivity().getIntent().getStringExtra("user_avatar");
         }
 
+        // Fallback cuối cùng
         if (TextUtils.isEmpty(userName)) {
-            userName = "Nguyen Van A";
+            userName = "Người dùng";
         }
 
         tvUserName.setText(userName);
@@ -131,7 +145,9 @@ public class HomeFragment extends Fragment {
             tvAvatar.setVisibility(View.GONE);
             Glide.with(this)
                     .load(userAvatarUrl)
-                    .centerCrop()
+                    .circleCrop()
+                    .placeholder(R.drawable.ic_person)
+                    .error(R.drawable.ic_person)
                     .into(ivAvatar);
         } else {
             tvAvatar.setText(HomeUiUtils.extractInitial(userName));
@@ -211,6 +227,8 @@ public class HomeFragment extends Fragment {
                             }
                         } else {
                             productList.addAll(buildFallbackProducts());
+                            productImageById.putAll(buildFallbackProductImages());
+                            productAdapter.setProductImageMap(productImageById);
                         }
 
                         productAdapter.submitList(productList);
@@ -225,11 +243,8 @@ public class HomeFragment extends Fragment {
                         productList.clear();
                         productList.addAll(buildFallbackProducts());
                         productAdapter.submitList(productList);
-                        Toast.makeText(
-                                requireContext(),
-                                "Khong tai duoc san pham, dang hien thi du lieu mau",
-                                Toast.LENGTH_SHORT
-                        ).show();
+                        productImageById.putAll(buildFallbackProductImages());
+                        productAdapter.setProductImageMap(productImageById);
                     }
                 }
         );
@@ -281,22 +296,41 @@ public class HomeFragment extends Fragment {
 
     private List<Category> buildFallbackCategories() {
         List<Category> fallback = new ArrayList<>();
-        fallback.add(new Category("uuid-1", "Laptop", null));
-        fallback.add(new Category("uuid-2", "Dien tu", null));
-        fallback.add(new Category("uuid-3", "Sach", null));
-        fallback.add(new Category("uuid-4", "Nhu yeu pham", null));
+        fallback.add(new Category("fb-cat-1", "Laptop", null));
+        fallback.add(new Category("fb-cat-2", "Điện tử", null));
+        fallback.add(new Category("fb-cat-3", "Sách", null));
+        fallback.add(new Category("fb-cat-4", "Điện thoại", null));
+        fallback.add(new Category("fb-cat-5", "Phụ kiện", null));
+        fallback.add(new Category("fb-cat-6", "Thể thao", null));
+        fallback.add(new Category("fb-cat-7", "Nhà cửa", null));
+        fallback.add(new Category("fb-cat-8", "Văn phòng", null));
         return fallback;
     }
 
     private List<Product> buildFallbackProducts() {
         List<Product> fallback = new ArrayList<>();
-        fallback.add(createFallbackProduct("uuid-101", "uuid-cat-1", "MacBook Pro M1 2020 8GB/256GB", 15500000d, "used"));
-        fallback.add(createFallbackProduct("uuid-102", "uuid-cat-3", "Giao trinh Giai tich 1", 50000d, "good"));
-        fallback.add(createFallbackProduct("uuid-103", "uuid-cat-2", "Tai nghe Bluetooth chong on", 890000d, "new"));
-        fallback.add(createFallbackProduct("uuid-104", "uuid-cat-4", "Den ban hoc chong can", 120000d, "new"));
-        fallback.add(createFallbackProduct("uuid-105", "uuid-cat-2", "Ban phim co mini RGB", 650000d, "used"));
-        fallback.add(createFallbackProduct("uuid-106", "uuid-cat-4", "Binh nuoc giu nhiet 500ml", 95000d, "new"));
+        fallback.add(createFallbackProduct("fb-prod-1", "fb-cat-1", "MacBook Pro M1 2020 8GB/256GB", 15_500_000d, "used"));
+        fallback.add(createFallbackProduct("fb-prod-2", "fb-cat-3", "Giáo trình Giải tích 1 (Tái bản)", 45_000d, "good"));
+        fallback.add(createFallbackProduct("fb-prod-3", "fb-cat-2", "Tai nghe Sony WH-1000XM4", 890_000d, "used"));
+        fallback.add(createFallbackProduct("fb-prod-4", "fb-cat-7", "Đèn bàn LED chống cận Xiaomi", 120_000d, "new"));
+        fallback.add(createFallbackProduct("fb-prod-5", "fb-cat-5", "Bàn phím cơ Keychron K2 RGB", 650_000d, "used"));
+        fallback.add(createFallbackProduct("fb-prod-6", "fb-cat-4", "Samsung Galaxy A54 5G 128GB", 4_200_000d, "used"));
+        fallback.add(createFallbackProduct("fb-prod-7", "fb-cat-7", "Bình nước giữ nhiệt 500ml", 95_000d, "new"));
+        fallback.add(createFallbackProduct("fb-prod-8", "fb-cat-6", "Vợt cầu lông Yonex Nanoray", 280_000d, "good"));
         return fallback;
+    }
+
+    private Map<String, String> buildFallbackProductImages() {
+        Map<String, String> images = new HashMap<>();
+        images.put("fb-prod-1", "https://picsum.photos/seed/laptop42/400/300");
+        images.put("fb-prod-2", "https://picsum.photos/seed/book11/400/300");
+        images.put("fb-prod-3", "https://picsum.photos/seed/audio22/400/300");
+        images.put("fb-prod-4", "https://picsum.photos/seed/desk33/400/300");
+        images.put("fb-prod-5", "https://picsum.photos/seed/keyboard44/400/300");
+        images.put("fb-prod-6", "https://picsum.photos/seed/phone55/400/300");
+        images.put("fb-prod-7", "https://picsum.photos/seed/bottle66/400/300");
+        images.put("fb-prod-8", "https://picsum.photos/seed/sport77/400/300");
+        return images;
     }
 
     private Product createFallbackProduct(String id, String categoryId, String title, Double price, String condition) {

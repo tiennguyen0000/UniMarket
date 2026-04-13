@@ -7,11 +7,13 @@ import android.view.View;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.unimarket.MainActivity;
 import com.example.unimarket.R;
+import com.example.unimarket.data.model.User;
+import com.example.unimarket.data.service.UserService;
+import com.example.unimarket.data.service.base.AsyncCrudService;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
@@ -47,15 +49,13 @@ public class RegisterActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_register);
-
+        
         mAuth = FirebaseAuth.getInstance();
-
+        
         initViews();
         setupGoogleSignIn();
         setupListeners();
     }
-
-    // ─── Init ─────────────────────────────────────────────────────────────────
 
     private void initViews() {
         tilFullName        = findViewById(R.id.tilFullName);
@@ -91,14 +91,11 @@ public class RegisterActivity extends AppCompatActivity {
             finish();
         });
 
-        // Clear errors on type
         etFullName.addTextChangedListener(clearError(tilFullName));
         etEmail.addTextChangedListener(clearError(tilEmail));
         etPassword.addTextChangedListener(clearError(tilPassword));
         etConfirmPassword.addTextChangedListener(clearError(tilConfirmPassword));
     }
-
-    // ─── Email/Password Register ──────────────────────────────────────────────
 
     private void attemptRegister() {
         if (!validateInputs()) return;
@@ -108,25 +105,42 @@ public class RegisterActivity extends AppCompatActivity {
         String password = etPassword.getText().toString();
 
         setLoading(true);
-
         mAuth.createUserWithEmailAndPassword(email, password)
                 .addOnCompleteListener(this, task -> {
                     if (task.isSuccessful()) {
-                        FirebaseUser user = mAuth.getCurrentUser();
-                        if (user != null) {
-                            // Cập nhật display name
-                            UserProfileChangeRequest profileUpdate = new UserProfileChangeRequest.Builder()
-                                    .setDisplayName(fullName)
-                                    .build();
-                            user.updateProfile(profileUpdate);
-
-                            // Gửi email xác thực
-                            user.sendEmailVerification()
-                                    .addOnCompleteListener(verifyTask -> {
-                                        setLoading(false);
-                                        navigateToVerifyEmail(email);
-                                    });
+                        FirebaseUser firebaseUser = mAuth.getCurrentUser();
+                        if (firebaseUser == null) {
+                            setLoading(false);
+                            return;
                         }
+
+                        // 1. Cập nhật Display Name bên Firebase (fire-and-forget, không block flow)
+                        UserProfileChangeRequest profileUpdate = new UserProfileChangeRequest.Builder()
+                                .setDisplayName(fullName)
+                                .build();
+                        firebaseUser.updateProfile(profileUpdate);
+
+                        // 2. Upsert Profile bên Supabase với Firebase UID
+                        User newUser = new User();
+                        newUser.setId(firebaseUser.getUid());
+                        newUser.setFull_name(fullName);
+
+                        new UserService().upsertProfile(newUser, new AsyncCrudService.ItemCallback<User>() {
+                            @Override
+                            public void onSuccess(User data) {
+                                // 3. Gửi email xác thực sau khi profile đã được tạo
+                                firebaseUser.sendEmailVerification();
+                                setLoading(false);
+                                navigateToVerifyEmail(email);
+                            }
+
+                            @Override
+                            public void onError(String error) {
+                                setLoading(false);
+                                Toast.makeText(RegisterActivity.this,
+                                        "Không thể tạo hồ sơ: " + error, Toast.LENGTH_LONG).show();
+                            }
+                        });
                     } else {
                         setLoading(false);
                         handleRegisterError(task.getException());
@@ -188,8 +202,6 @@ public class RegisterActivity extends AppCompatActivity {
         }
     }
 
-    // ─── Google Sign-In ───────────────────────────────────────────────────────
-
     private void signInWithGoogle() {
         setLoading(true);
         Intent signInIntent = googleSignInClient.getSignInIntent();
@@ -203,11 +215,22 @@ public class RegisterActivity extends AppCompatActivity {
             Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
             try {
                 GoogleSignInAccount account = task.getResult(ApiException.class);
-                firebaseAuthWithGoogle(account.getIdToken());
+                String idToken = account.getIdToken();
+                if (idToken == null) {
+                    setLoading(false);
+                    Toast.makeText(this,
+                            "Không lấy được token Google. Hãy kiểm tra SHA-1 trong Firebase Console.",
+                            Toast.LENGTH_LONG).show();
+                    return;
+                }
+                firebaseAuthWithGoogle(idToken);
             } catch (ApiException e) {
                 setLoading(false);
-                Toast.makeText(this, "Google Sign-In thất bại: " + e.getStatusCode(),
-                        Toast.LENGTH_SHORT).show();
+                String msg = "Google Sign-In thất bại (mã lỗi: " + e.getStatusCode() + ")";
+                if (e.getStatusCode() == 10) {
+                    msg = "Cấu hình Google Sign-In chưa đúng. Kiểm tra SHA-1 trong Firebase Console.";
+                }
+                Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
             }
         }
     }
@@ -216,16 +239,42 @@ public class RegisterActivity extends AppCompatActivity {
         AuthCredential credential = GoogleAuthProvider.getCredential(idToken, null);
         mAuth.signInWithCredential(credential)
                 .addOnCompleteListener(this, task -> {
-                    setLoading(false);
                     if (task.isSuccessful()) {
-                        navigateToMain();
+                        FirebaseUser firebaseUser = mAuth.getCurrentUser();
+                        if (firebaseUser != null) {
+                            syncGoogleProfileAndNavigate(firebaseUser);
+                        } else {
+                            setLoading(false);
+                            Toast.makeText(this, "Xác thực Google thất bại", Toast.LENGTH_SHORT).show();
+                        }
                     } else {
+                        setLoading(false);
                         Toast.makeText(this, "Xác thực Google thất bại", Toast.LENGTH_SHORT).show();
                     }
                 });
     }
 
-    // ─── Navigation ───────────────────────────────────────────────────────────
+    private void syncGoogleProfileAndNavigate(FirebaseUser firebaseUser) {
+        User profile = new User();
+        profile.setId(firebaseUser.getUid());
+        profile.setFull_name(firebaseUser.getDisplayName());
+        profile.setAvatar_url(
+                firebaseUser.getPhotoUrl() != null ? firebaseUser.getPhotoUrl().toString() : null);
+
+        new UserService().upsertProfile(profile, new AsyncCrudService.ItemCallback<User>() {
+            @Override
+            public void onSuccess(User data) {
+                setLoading(false);
+                navigateToMain();
+            }
+
+            @Override
+            public void onError(String error) {
+                setLoading(false);
+                navigateToMain();
+            }
+        });
+    }
 
     private void navigateToMain() {
         Intent intent = new Intent(this, MainActivity.class);
@@ -241,13 +290,11 @@ public class RegisterActivity extends AppCompatActivity {
         finish();
     }
 
-    // ─── UI Helpers ───────────────────────────────────────────────────────────
-
     private void setLoading(boolean isLoading) {
         progressBar.setVisibility(isLoading ? View.VISIBLE : View.GONE);
         btnRegister.setEnabled(!isLoading);
         btnGoogleRegister.setEnabled(!isLoading);
-        btnRegister.setText(isLoading ? "Đang đăng ký..." : "Đăng ký");
+        btnRegister.setText(isLoading ? "Đang xử lý..." : "Đăng ký");
     }
 
     private android.text.TextWatcher clearError(TextInputLayout til) {

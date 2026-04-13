@@ -29,6 +29,10 @@ import com.google.firebase.auth.FirebaseAuthInvalidUserException;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.GoogleAuthProvider;
 
+import com.example.unimarket.data.model.User;
+import com.example.unimarket.data.service.UserService;
+import com.example.unimarket.data.service.base.AsyncCrudService;
+
 public class LoginActivity extends AppCompatActivity {
 
     private static final int RC_GOOGLE_SIGN_IN = 1001;
@@ -60,11 +64,53 @@ public class LoginActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
-        // Auto-redirect nếu đã đăng nhập & đã verify email
         FirebaseUser currentUser = mAuth.getCurrentUser();
-        if (currentUser != null && currentUser.isEmailVerified()) {
+        if (currentUser == null) return;
+
+        // Google accounts: Firebase tự đánh dấu verified, upsert profile rồi vào app
+        boolean isGoogleUser = false;
+        for (com.google.firebase.auth.UserInfo info : currentUser.getProviderData()) {
+            if ("google.com".equals(info.getProviderId())) {
+                isGoogleUser = true;
+                break;
+            }
+        }
+        if (isGoogleUser) {
+            syncGoogleProfileAndNavigate(currentUser);
+            return;
+        }
+
+        // Email/password: chỉ vào app nếu đã xác thực email
+        if (currentUser.isEmailVerified()) {
             navigateToMain();
         }
+    }
+
+    /**
+     * Upsert Supabase profile cho Google user rồi navigate vào app.
+     * Gọi trong onStart (mở lại app) lẫn sau khi signIn mới.
+     */
+    private void syncGoogleProfileAndNavigate(FirebaseUser firebaseUser) {
+        User profile = new User();
+        profile.setId(firebaseUser.getUid());
+        profile.setFull_name(firebaseUser.getDisplayName());
+        profile.setAvatar_url(
+                firebaseUser.getPhotoUrl() != null ? firebaseUser.getPhotoUrl().toString() : null);
+
+        new UserService().upsertProfile(profile, new AsyncCrudService.ItemCallback<User>() {
+            @Override
+            public void onSuccess(User data) {
+                setLoading(false);
+                navigateToMain();
+            }
+
+            @Override
+            public void onError(String error) {
+                // Profile đã tồn tại hoặc lỗi mạng → vẫn vào app, không block người dùng
+                setLoading(false);
+                navigateToMain();
+            }
+        });
     }
 
     // ─── Init ─────────────────────────────────────────────────────────────────
@@ -196,11 +242,22 @@ public class LoginActivity extends AppCompatActivity {
             Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
             try {
                 GoogleSignInAccount account = task.getResult(ApiException.class);
-                firebaseAuthWithGoogle(account.getIdToken());
+                String idToken = account.getIdToken();
+                if (idToken == null) {
+                    setLoading(false);
+                    Toast.makeText(this,
+                            "Không lấy được token Google. Hãy kiểm tra SHA-1 trong Firebase Console.",
+                            Toast.LENGTH_LONG).show();
+                    return;
+                }
+                firebaseAuthWithGoogle(idToken);
             } catch (ApiException e) {
                 setLoading(false);
-                Toast.makeText(this, "Google Sign-In thất bại: " + e.getStatusCode(),
-                        Toast.LENGTH_SHORT).show();
+                String msg = "Google Sign-In thất bại (mã lỗi: " + e.getStatusCode() + ")";
+                if (e.getStatusCode() == 10) {
+                    msg = "Cấu hình Google Sign-In chưa đúng. Kiểm tra SHA-1 trong Firebase Console.";
+                }
+                Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
             }
         }
     }
@@ -209,10 +266,16 @@ public class LoginActivity extends AppCompatActivity {
         AuthCredential credential = GoogleAuthProvider.getCredential(idToken, null);
         mAuth.signInWithCredential(credential)
                 .addOnCompleteListener(this, task -> {
-                    setLoading(false);
                     if (task.isSuccessful()) {
-                        navigateToMain();
+                        FirebaseUser firebaseUser = mAuth.getCurrentUser();
+                        if (firebaseUser != null) {
+                            syncGoogleProfileAndNavigate(firebaseUser);
+                        } else {
+                            setLoading(false);
+                            Toast.makeText(this, "Xác thực Google thất bại", Toast.LENGTH_SHORT).show();
+                        }
                     } else {
+                        setLoading(false);
                         Toast.makeText(this, "Xác thực Google thất bại", Toast.LENGTH_SHORT).show();
                     }
                 });

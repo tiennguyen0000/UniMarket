@@ -128,6 +128,48 @@ public class HttpApiClient {
 
     // ==================== Helper Methods ====================
 
+    /**
+     * GET records từ một bảng với filter đơn giản (column=eq.value)
+     */
+    public <T> ApiResponse<List<T>> getWithFilter(String tableName, String column, String value, Class<T> itemClass) {
+        try {
+            String url = getTableEndpoint(tableName) + "?" + column + "=eq." + value;
+            Request request = buildGetRequest(url);
+
+            Response response = httpClient.newCall(request).execute();
+            return handleListResponse(response, itemClass);
+        } catch (Exception e) {
+            Log.e(TAG, "Error fetching from " + tableName + " with filter " + column + "=" + value, e);
+            return new ApiResponse<>(false, null, e.getMessage());
+        }
+    }
+
+    /**
+     * UPSERT - Tạo mới nếu chưa có, cập nhật nếu đã tồn tại (dựa trên conflict của cột id)
+     * Phù hợp để đồng bộ Profile từ Firebase sang Supabase
+     */
+    public <T> ApiResponse<T> upsert(String tableName, T item, Class<T> itemClass) {
+        try {
+            String url = getTableEndpoint(tableName);
+            String json = gson.toJson(item);
+            RequestBody body = RequestBody.create(json, MediaType.parse("application/json"));
+            Request request = new Request.Builder()
+                    .url(url)
+                    .header("apikey", apiKey)
+                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Content-Type", "application/json")
+                    .header("Prefer", "resolution=merge-duplicates,return=representation")
+                    .post(body)
+                    .build();
+
+            Response response = httpClient.newCall(request).execute();
+            return handleSingleResponse(response, itemClass);
+        } catch (Exception e) {
+            Log.e(TAG, "Error upserting in " + tableName, e);
+            return new ApiResponse<>(false, null, e.getMessage());
+        }
+    }
+
     private String getTableEndpoint(String tableName) {
         return baseUrl + "/rest/v1/" + tableName;
     }

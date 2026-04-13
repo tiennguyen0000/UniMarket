@@ -13,13 +13,16 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.unimarket.R;
 import com.example.unimarket.MainActivity;
+import com.example.unimarket.data.model.User;
+import com.example.unimarket.data.service.UserService;
+import com.example.unimarket.data.service.base.AsyncCrudService;
 import com.google.android.material.button.MaterialButton;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 
 public class VerifyEmailActivity extends AppCompatActivity {
 
-    private static final long RESEND_COOLDOWN_MS = 60_000L; // 60 giây
+    private static final long RESEND_COOLDOWN_MS = 60_000L; // 60 seconds
 
     private TextView tvEmailSentTo, tvResendCooldown;
     private MaterialButton btnCheckVerified, btnResendEmail;
@@ -92,12 +95,31 @@ public class VerifyEmailActivity extends AppCompatActivity {
 
         // Reload user để lấy trạng thái mới nhất từ Firebase
         user.reload().addOnCompleteListener(task -> {
-            setLoading(false);
             FirebaseUser refreshedUser = mAuth.getCurrentUser();
             if (refreshedUser != null && refreshedUser.isEmailVerified()) {
-                Toast.makeText(this, "✅ Xác thực thành công!", Toast.LENGTH_SHORT).show();
-                navigateToMain();
+                // Đồng bộ trạng thái verified sang Supabase profile
+                User updatedProfile = new User();
+                updatedProfile.setId(refreshedUser.getUid());
+                updatedProfile.setIs_verified(true);
+
+                new UserService().upsertProfile(updatedProfile, new AsyncCrudService.ItemCallback<User>() {
+                    @Override
+                    public void onSuccess(User data) {
+                        setLoading(false);
+                        Toast.makeText(VerifyEmailActivity.this, "Xác thực thành công!", Toast.LENGTH_SHORT).show();
+                        navigateToMain();
+                    }
+
+                    @Override
+                    public void onError(String error) {
+                        // Không block navigation nếu sync Supabase thất bại
+                        setLoading(false);
+                        Toast.makeText(VerifyEmailActivity.this, "Xác thực thành công!", Toast.LENGTH_SHORT).show();
+                        navigateToMain();
+                    }
+                });
             } else {
+                setLoading(false);
                 Toast.makeText(this,
                         "Email chưa được xác thực. Vui lòng kiểm tra hộp thư.",
                         Toast.LENGTH_LONG).show();

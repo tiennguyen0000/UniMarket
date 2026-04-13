@@ -1,5 +1,7 @@
 package com.example.unimarket.data.service.base;
 
+import com.example.unimarket.data.model.User;
+
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -24,7 +26,7 @@ public abstract class BaseCrudService<T> implements Identifiable<T> {
         return store.get(id);
     }
 
-    public synchronized boolean create(T item) {
+    public synchronized boolean create(T item, AsyncCrudService.ItemCallback<User> itemCallback) {
         if (item == null) {
             return false;
         }

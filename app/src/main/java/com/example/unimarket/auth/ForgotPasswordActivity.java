@@ -15,7 +15,6 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseAuthInvalidUserException;
 
 public class ForgotPasswordActivity extends AppCompatActivity {
 
@@ -82,20 +81,9 @@ public class ForgotPasswordActivity extends AppCompatActivity {
         mAuth.sendPasswordResetEmail(email)
                 .addOnCompleteListener(task -> {
                     setLoading(false);
-                    if (task.isSuccessful()) {
-                        showSuccessDialog(email);
-                    } else {
-                        handleError(task.getException());
-                    }
+                    // Luôn hiện thông báo thành công để tránh lộ thông tin email tồn tại hay không
+                    showSuccessDialog(email);
                 });
-    }
-
-    private void handleError(Exception e) {
-        if (e instanceof FirebaseAuthInvalidUserException) {
-            tilEmail.setError("Email này chưa được đăng ký");
-        } else {
-            tilEmail.setError("Gửi email thất bại, vui lòng thử lại");
-        }
     }
 
     private void showSuccessDialog(String email) {
