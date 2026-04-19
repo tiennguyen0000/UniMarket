@@ -7,11 +7,15 @@ import com.example.unimarket.data.service.base.BaseCrudService;
 public class UserService extends BaseCrudService<User> {
 
     /**
-     * Tạo mới hoặc cập nhật profile Supabase theo Firebase UID.
+     * Tạo mới hoặc cập nhật profile Firestore theo Firebase UID.
      * An toàn cho cả đăng ký lần đầu lẫn đăng nhập lại (không bị lỗi duplicate key).
      */
     public void upsertProfile(User user, AsyncCrudService.ItemCallback<User> callback) {
-        AsyncCrudService.upsert(getTableName(), user, getModelClass(), callback);
+        upsert(user, callback);
+    }
+
+    public void getProfileById(String userId, AsyncCrudService.ItemCallback<User> callback) {
+        getById(userId, callback);
     }
 
     @Override

@@ -13,12 +13,11 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.example.unimarket.MainActivity;
 import com.example.unimarket.R;
 import com.example.unimarket.data.model.User;
-import com.example.unimarket.data.service.UserService;
-import com.example.unimarket.data.service.base.AsyncCrudService;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 
@@ -26,6 +25,7 @@ public class ProfileFragment extends Fragment {
 
     private EditText etFullName, etPhone, etUniversity;
     private Button btnSaveProfile, btnLogout;
+    private ProfileViewModel profileViewModel;
 
     @Nullable
     @Override
@@ -44,6 +44,8 @@ public class ProfileFragment extends Fragment {
         btnSaveProfile = view.findViewById(R.id.btnSaveProfile);
         btnLogout     = view.findViewById(R.id.btnLogout);
 
+        profileViewModel = new ViewModelProvider(this).get(ProfileViewModel.class);
+        observeViewModel();
         loadUserProfile();
         setupListeners();
     }
@@ -52,38 +54,8 @@ public class ProfileFragment extends Fragment {
         FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
         if (firebaseUser == null) return;
 
-        // Hiển thị tên từ Firebase trước (nhanh, không cần network)
         String displayName = firebaseUser.getDisplayName();
-        if (!TextUtils.isEmpty(displayName)) {
-            etFullName.setText(displayName);
-        }
-
-        // Load thêm phone/university từ Supabase profile
-        AsyncCrudService.getById(
-                "profiles",
-                firebaseUser.getUid(),
-                User.class,
-                new AsyncCrudService.ItemCallback<User>() {
-                    @Override
-                    public void onSuccess(User data) {
-                        if (!isAdded() || data == null) return;
-                        if (!TextUtils.isEmpty(data.getFull_name())) {
-                            etFullName.setText(data.getFull_name());
-                        }
-                        if (!TextUtils.isEmpty(data.getPhone())) {
-                            etPhone.setText(data.getPhone());
-                        }
-                        if (!TextUtils.isEmpty(data.getUniversity())) {
-                            etUniversity.setText(data.getUniversity());
-                        }
-                    }
-
-                    @Override
-                    public void onError(String error) {
-                        // Profile chưa có hoặc lỗi mạng - không block UI
-                    }
-                }
-        );
+        profileViewModel.loadProfile(firebaseUser.getUid(), displayName);
     }
 
     private void setupListeners() {
@@ -94,6 +66,37 @@ public class ProfileFragment extends Fragment {
             Intent intent = new Intent(requireContext(), MainActivity.class);
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             startActivity(intent);
+        });
+    }
+
+    private void observeViewModel() {
+        profileViewModel.getUiState().observe(getViewLifecycleOwner(), state -> {
+            if (state == null) {
+                return;
+            }
+            User data = state.getProfile();
+            if (!isAdded() || data == null) {
+                return;
+            }
+            if (!TextUtils.isEmpty(data.getFull_name())) {
+                etFullName.setText(data.getFull_name());
+            }
+            if (!TextUtils.isEmpty(data.getPhone())) {
+                etPhone.setText(data.getPhone());
+            }
+            if (!TextUtils.isEmpty(data.getUniversity())) {
+                etUniversity.setText(data.getUniversity());
+            }
+            
+            boolean isSaving = state.isSaving();
+            btnSaveProfile.setEnabled(!isSaving);
+            btnSaveProfile.setText(isSaving ? "Đang lưu..." : "Lưu");
+        });
+
+        profileViewModel.getUiEvent().observe(getViewLifecycleOwner(), event -> {
+            if (event != null && isAdded() && !TextUtils.isEmpty(event.getMessage())) {
+                Toast.makeText(requireContext(), event.getMessage(), Toast.LENGTH_SHORT).show();
+            }
         });
     }
 
@@ -109,32 +112,6 @@ public class ProfileFragment extends Fragment {
             etFullName.setError("Vui lòng nhập họ và tên");
             return;
         }
-
-        btnSaveProfile.setEnabled(false);
-        btnSaveProfile.setText("Đang lưu...");
-
-        User updatedUser = new User();
-        updatedUser.setId(firebaseUser.getUid());
-        updatedUser.setFull_name(fullName);
-        updatedUser.setPhone(phone);
-        updatedUser.setUniversity(university);
-
-        new UserService().upsertProfile(updatedUser, new AsyncCrudService.ItemCallback<User>() {
-            @Override
-            public void onSuccess(User data) {
-                if (!isAdded()) return;
-                btnSaveProfile.setEnabled(true);
-                btnSaveProfile.setText("Lưu");
-                Toast.makeText(requireContext(), "Đã lưu hồ sơ!", Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void onError(String error) {
-                if (!isAdded()) return;
-                btnSaveProfile.setEnabled(true);
-                btnSaveProfile.setText("Lưu");
-                Toast.makeText(requireContext(), "Lưu thất bại: " + error, Toast.LENGTH_SHORT).show();
-            }
-        });
+        profileViewModel.saveProfile(firebaseUser.getUid(), fullName, phone, university);
     }
 }
