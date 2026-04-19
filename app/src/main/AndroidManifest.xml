@@ -27,7 +27,6 @@
         <activity android:name=".Controller"/>
         <activity android:name=".auth.LoginActivity"/>
         <activity android:name=".OnboardingActivity"/>
-        <activity android:name=".test.CrudTestActivity"/>
     </application>
 
 </manifest>

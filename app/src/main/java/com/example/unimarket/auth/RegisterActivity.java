@@ -120,7 +120,7 @@ public class RegisterActivity extends AppCompatActivity {
                                 .build();
                         firebaseUser.updateProfile(profileUpdate);
 
-                        // 2. Upsert Profile bên Supabase với Firebase UID
+                        // 2. Upsert Profile bên Firestore với Firebase UID
                         User newUser = new User();
                         newUser.setId(firebaseUser.getUid());
                         newUser.setFull_name(fullName);

@@ -97,7 +97,7 @@ public class VerifyEmailActivity extends AppCompatActivity {
         user.reload().addOnCompleteListener(task -> {
             FirebaseUser refreshedUser = mAuth.getCurrentUser();
             if (refreshedUser != null && refreshedUser.isEmailVerified()) {
-                // Đồng bộ trạng thái verified sang Supabase profile
+                // Đồng bộ trạng thái verified vào Firestore profile
                 User updatedProfile = new User();
                 updatedProfile.setId(refreshedUser.getUid());
                 updatedProfile.setIs_verified(true);
@@ -112,7 +112,7 @@ public class VerifyEmailActivity extends AppCompatActivity {
 
                     @Override
                     public void onError(String error) {
-                        // Không block navigation nếu sync Supabase thất bại
+                        // Không block navigation nếu sync profile thất bại
                         setLoading(false);
                         Toast.makeText(VerifyEmailActivity.this, "Xác thực thành công!", Toast.LENGTH_SHORT).show();
                         navigateToMain();

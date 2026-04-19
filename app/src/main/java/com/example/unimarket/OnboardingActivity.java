@@ -63,8 +63,8 @@ public class OnboardingActivity extends AppCompatActivity {
         };
         int[] images = {
                 R.drawable.shopping_cart,
-                R.drawable.shopping_cart, // Cần thay bằng ic_buy.png
-                R.drawable.shopping_cart  // Cần thay bằng ic_sell.png
+                R.drawable.shopping_cart,
+                R.drawable.shopping_cart
         };
 
         OnboardingAdapter adapter = new OnboardingAdapter(this, titles, descs, images);

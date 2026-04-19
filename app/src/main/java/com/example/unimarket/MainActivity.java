@@ -15,7 +15,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Logic điều hướng (Traffic Controller)
+        // (Traffic Controller)
         if (!isOnboardingCompleted()) {
             // 1. Chưa xem Onboarding -> Chuyển sang Onboarding
             startActivity(new Intent(this, OnboardingActivity.class));
@@ -26,7 +26,6 @@ public class MainActivity extends AppCompatActivity {
             // 3. Đã xong xuôi -> Vào App chính
             startActivity(new Intent(this, Controller.class));
         }
-        
         finish();
     }
 

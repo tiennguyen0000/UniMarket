@@ -45,7 +45,7 @@ public class LoginActivity extends AppCompatActivity {
     private TextView tvForgotPassword, tvRegister;
     private ProgressBar progressBar;
 
-    // Firebase
+    // Firebase SDK
     private FirebaseAuth mAuth;
     private GoogleSignInClient googleSignInClient;
 
@@ -67,7 +67,7 @@ public class LoginActivity extends AppCompatActivity {
         FirebaseUser currentUser = mAuth.getCurrentUser();
         if (currentUser == null) return;
 
-        // Google accounts: Firebase tự đánh dấu verified, upsert profile rồi vào app
+        // Google accounts
         boolean isGoogleUser = false;
         for (com.google.firebase.auth.UserInfo info : currentUser.getProviderData()) {
             if ("google.com".equals(info.getProviderId())) {
@@ -87,7 +87,7 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     /**
-     * Upsert Supabase profile cho Google user rồi navigate vào app.
+     * Upsert Firestore profile cho Google user rồi navigate vào app.
      * Gọi trong onStart (mở lại app) lẫn sau khi signIn mới.
      */
     private void syncGoogleProfileAndNavigate(FirebaseUser firebaseUser) {
@@ -103,10 +103,8 @@ public class LoginActivity extends AppCompatActivity {
                 setLoading(false);
                 navigateToMain();
             }
-
             @Override
             public void onError(String error) {
-                // Profile đã tồn tại hoặc lỗi mạng → vẫn vào app, không block người dùng
                 setLoading(false);
                 navigateToMain();
             }
@@ -131,7 +129,7 @@ public class LoginActivity extends AppCompatActivity {
 
     private void setupGoogleSignIn() {
         GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                .requestIdToken(getString(R.string.default_web_client_id)) // from google-services.json
+                .requestIdToken(getString(R.string.default_web_client_id))
                 .requestEmail()
                 .build();
         googleSignInClient = GoogleSignIn.getClient(this, gso);
@@ -162,7 +160,7 @@ public class LoginActivity extends AppCompatActivity {
         });
     }
 
-    // ─── Email/Password Login ─────────────────────────────────────────────────
+    // ─── EMAIL/PASSWORD LOGIN ─────────────────────────────────────────────────
 
     private void attemptLogin() {
         if (!validateInputs()) return;
@@ -227,8 +225,7 @@ public class LoginActivity extends AppCompatActivity {
         }
     }
 
-    // ─── Google Sign-In ───────────────────────────────────────────────────────
-
+    // ─── GOOGLE SIGN-IN ───────────────────────────────────────────────────────
     private void signInWithGoogle() {
         setLoading(true);
         Intent signInIntent = googleSignInClient.getSignInIntent();
