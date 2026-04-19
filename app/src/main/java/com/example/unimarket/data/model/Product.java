@@ -1,5 +1,7 @@
 package com.example.unimarket.data.model;
 
+import java.util.List;
+
 public class  Product {
     private String id;
     private String seller_id;
@@ -9,6 +11,7 @@ public class  Product {
     private String category_id;
     private String condition;
     private String status;
+    private List<String> image_urls;
     private String created_at;
     private String updated_at;
 
@@ -16,7 +19,8 @@ public class  Product {
     }
 
     public Product(String id, String seller_id, String title, String description, Double price,
-                   String category_id, String condition, String status, String created_at, String updated_at) {
+                   String category_id, String condition, String status, List<String> image_urls,
+                   String created_at, String updated_at) {
         this.id = id;
         this.seller_id = seller_id;
         this.title = title;
@@ -25,6 +29,7 @@ public class  Product {
         this.category_id = category_id;
         this.condition = condition;
         this.status = status;
+        this.image_urls = image_urls;
         this.created_at = created_at;
         this.updated_at = updated_at;
     }
@@ -45,6 +50,8 @@ public class  Product {
     public void setCondition(String condition) { this.condition = condition; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+    public List<String> getImage_urls() { return image_urls; }
+    public void setImage_urls(List<String> image_urls) { this.image_urls = image_urls; }
     public String getCreated_at() { return created_at; }
     public void setCreated_at(String created_at) { this.created_at = created_at; }
     public String getUpdated_at() { return updated_at; }
