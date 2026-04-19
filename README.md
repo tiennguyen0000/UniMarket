@@ -1,67 +1,93 @@
-# UniMarket – Nền tảng thương mại điện tử cho sinh viên
+# UniMarket
 
-**UniMarket** là ứng dụng di động giúp sinh viên trao đổi, mua bán sản phẩm (laptop, sách, đồ điện tử...) trong môi trường đại học một cách an toàn và tiện lợi.
+Ứng dụng Android hỗ trợ sinh viên mua bán, trao đổi đồ dùng học tập và thiết bị cá nhân trong môi trường đại học.
 
----
+## Kiến trúc hiện tại
 
-## 🚀 Công nghệ sử dụng
+Dự án đang dùng kiến trúc theo hướng phân tầng nhẹ:
 
-- **Ngôn ngữ:** Java (Android SDK)
-- **Kiến trúc:** Service-Oriented (Tách biệt logic dữ liệu và giao diện)
-- **Backend:** [Supabase](https://supabase.com/) (PostgreSQL, Auth, Storage)
-- **Thư viện chính:**
-  - `OkHttp`: Giao tiếp mạng (REST API)
-  - `Gson`: Xử lý dữ liệu JSON
-  - `Glide`: Tải và hiển thị hình ảnh
-  - `Navigation Component`: Điều hướng màn hình
+- **Presentation layer**
+  - `Activity`/`Fragment` cho UI và điều hướng.
+  - `ViewModel` cho state và xử lý luồng dữ liệu ở các màn đã chuẩn hóa (`Home`, `Profile`).
+  - Mẫu state/event:
+    - `UiState`: trạng thái màn hình.
+    - `UiEvent`: sự kiện một lần (thông báo, lỗi,...).
+- **Data layer**
+  - `data/model`: các model domain (`User`, `Product`, `Order`,...).
+  - `data/service`: service theo từng entity (`UserService`, `ProductService`,...).
+  - `data/service/base`:
+    - `AsyncCrudService`: CRUD bất đồng bộ với Firebase Firestore.
+    - `BaseCrudService`: base service chuẩn hóa API.
+    - `Result`/`ResultCallback`: kiểu kết quả thống nhất cho data flow.
 
----
+## Công nghệ
 
-## 📁 Cấu trúc dự án
+- **Ngôn ngữ:** Java 11 (Android)
+- **Backend:** Firebase
+  - Firebase Authentication (email/password, Google Sign-In)
+  - Cloud Firestore
+  - Firebase Analytics
+- **UI/Navigation**
+  - AndroidX Navigation Component
+  - RecyclerView
+  - Material Components
+  - Glide (image loading)
+- **Kiểm thử**
+  - JUnit (unit test)
+
+## Cấu trúc thư mục
 
 ```text
 app/src/main/java/com/example/unimarket/
-├── auth/           # Quản lý Đăng nhập, Đăng ký, Xác thực
+├── auth/                     # Login/Register/Verify/Forgot Password
 ├── data/
-│   ├── model/      # Các lớp dữ liệu (Product, User, Order...)
-│   └── service/    # Logic xử lý dữ liệu (CRUD operations)
-├── network/        # Cấu hình kết nối API Supabase
-├── pages/          # Các màn hình chính (Home, Search, Order, Profile)
-└── utils/          # Tiện ích và hằng số dùng chung
+│   ├── model/                # Data models
+│   └── service/
+│       ├── base/             # AsyncCrudService, BaseCrudService, Result
+│       └── ...               # UserService, ProductService, ...
+├── pages/
+│   ├── home/                 # HomeFragment + HomeViewModel + HomeUiState/Event
+│   ├── profile/              # ProfileFragment + ProfileViewModel + ProfileUiState/Event
+│   ├── search/
+│   └── orders/
+├── Controller.java           # Host bottom navigation
+├── MainActivity.java         # Entry routing (onboarding/auth/main flow)
+└── OnboardingActivity.java
 ```
 
----
+## Luồng chính
 
-## ✨ Chức năng chính
+- Mở app -> `MainActivity` quyết định flow (onboarding/auth/main).
+- Đăng nhập/đăng ký qua Firebase Auth.
+- Sau auth, profile người dùng đồng bộ lên Firestore collection `profiles`.
+- Các màn feature đọc/ghi dữ liệu qua `service` và `AsyncCrudService`.
 
-### 1. Quản lý tài khoản & Xác thực
-- Đăng ký/Đăng nhập tài khoản sinh viên.
-- Xác minh danh tính qua Email trường hoặc Thẻ sinh viên.
-- Khôi phục mật khẩu qua email.
+## Thiết lập và chạy dự án
 
-### 2. Mua bán & Trao đổi
-- Xem danh sách sản phẩm theo danh mục (Laptop, Sách, Giáo trình...).
-- Tìm kiếm và lọc sản phẩm thông minh.
-- Đăng tin bán sản phẩm kèm hình ảnh.
-- Quản lý giỏ hàng và đặt hàng.
+### Yêu cầu
 
-### 3. Tương tác & Gợi ý
-- Chat trực tuyến thời gian thực giữa người mua và người bán.
-- Đánh giá chất lượng sản phẩm và người bán.
-- Hệ thống gợi ý sản phẩm dựa trên nhu cầu sinh viên.
+- Android Studio (khuyến nghị bản mới)
+- JDK 11
+- Android SDK theo cấu hình trong `app/build.gradle.kts`
 
----
+### Cấu hình Firebase
 
-## 🛠 Hướng dẫn thiết lập
+1. Tạo Firebase project.
+2. Bật **Authentication** (Email/Password, Google nếu cần).
+3. Bật **Cloud Firestore**.
+4. Tải `google-services.json` và đặt vào:
+   - `app/google-services.json`
+5. Đảm bảo `default_web_client_id` đúng cho Google Sign-In (nếu dùng).
 
-1.  **Yêu cầu:** Android Studio Flamingo (hoặc mới hơn), Java 11+.
-2.  **Cấu hình Backend:**
-    - Tạo dự án trên Supabase.
-    - Chạy file `app/src/main/java/com/example/unimarket/data/init.sql` trong SQL Editor của Supabase.
-    - Cập nhật `SUPABASE_URL` và `SUPABASE_ANON_KEY` trong `com.example.unimarket.utils.Constants`.
-3.  **Build & Run:** Mở dự án trong Android Studio và nhấn **Run**.
+### Build
 
----
+- Build debug:
+  - `./gradlew :app:assembleDebug`
+- Compile Java:
+  - `./gradlew :app:compileDebugJavaWithJavac`
+- Run unit tests:
+  - `./gradlew :app:testDebugUnitTest`
 
-## 📝 Giấy phép
-Dự án được phát triển phục vụ mục đích học tập (Đồ án môn học).
+
+
+
