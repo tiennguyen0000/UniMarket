@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/main_nav_graph"
+    app:startDestination="@id/homeFragment">
+
+    <fragment
+        android:id="@+id/homeFragment"
+        android:name="com.example.unimarket.pages.home.HomeFragment"
+        android:label="Trang chủ" />
+
+    <fragment
+        android:id="@+id/searchFragment"
+        android:name="com.example.unimarket.pages.search.SearchFragment"
+        android:label="Tìm kiếm" />
+
+    <fragment
+        android:id="@+id/ordersFragment"
+        android:name="com.example.unimarket.pages.orders.OrdersFragment"
+        android:label="Đơn hàng" />
+
+    <fragment
+        android:id="@+id/profileFragment"
+        android:name="com.example.unimarket.pages.profile.ProfileFragment"
+        android:label="Hồ sơ" />
+
+</navigation>
