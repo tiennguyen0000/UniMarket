@@ -24,4 +24,9 @@
         android:name="com.example.unimarket.pages.profile.ProfileFragment"
         android:label="Hồ sơ" />
 
+    <fragment
+        android:id="@+id/postListingFragment"
+        android:name="com.example.unimarket.pages.post.PostListingFragment"
+        android:label="Đăng tin" />
+
 </navigation>

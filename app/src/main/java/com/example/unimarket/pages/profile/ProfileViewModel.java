@@ -13,6 +13,7 @@ import com.example.unimarket.data.service.base.Result;
 public class ProfileViewModel extends ViewModel {
     private final UserService userService = new UserService();
 
+    // Object MutableLiveData cho phép các thành phần giao diện lắng nghe khi có sự thay đổi.
     private final MutableLiveData<ProfileUiState> uiState = new MutableLiveData<>(ProfileUiState.initial());
     private final MutableLiveData<ProfileUiEvent> uiEvent = new MutableLiveData<>();
 
