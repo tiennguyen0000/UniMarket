@@ -80,7 +80,6 @@ public class Controller extends AppCompatActivity {
 		ivTabSearch = findViewById(R.id.ivTabSearch);
 		ivTabOrders = findViewById(R.id.ivTabOrders);
 		ivTabProfile = findViewById(R.id.ivTabProfile);
-		imageViewMenu = findViewById(R.id.imageViewMenu);
 
         // Text
 		tvTabHome = findViewById(R.id.tvTabHome);
