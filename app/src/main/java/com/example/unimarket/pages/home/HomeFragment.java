@@ -14,6 +14,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.navigation.NavController;
+import androidx.navigation.fragment.NavHostFragment;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.SimpleItemAnimator;
@@ -35,7 +37,7 @@ public class HomeFragment extends Fragment {
     private TextView tvUserName;
     private ImageView ivAvatar;
     private TextView tvAvatar;
-    private LinearLayout layoutSearch;
+    private ImageView layoutSearch;
     private ImageView layoutNotification;
     private TextView tvViewAll;
 
@@ -50,6 +52,8 @@ public class HomeFragment extends Fragment {
     private final List<Product> productList = new ArrayList<>();
     private final Map<String, String> categoryNameById = new HashMap<>();
     private final Map<String, String> productImageById = new HashMap<>();
+    
+    private boolean isExpandedCategories = false;
 
     @Nullable
     @Override
@@ -91,11 +95,13 @@ public class HomeFragment extends Fragment {
         rvCategories.setNestedScrollingEnabled(false);
         rvCategories.setAdapter(categoryAdapter);
         rvCategories.addItemDecoration(new GridSpacingItemDecoration(4, dpToPx(10), true));
+        isExpandedCategories = false;
 
         productAdapter = new ProductAdapter(
                 new ArrayList<>(),
                 new HashMap<>(),
-                product -> Toast.makeText(requireContext(), safeProductTitle(product), Toast.LENGTH_SHORT).show()
+                product -> Toast.makeText(requireContext(), safeProductTitle(product), Toast.LENGTH_SHORT).show(),
+                (product, imageUrl, categoryName) -> openProductDetail(product, imageUrl, categoryName)
         );
         rvProducts.setLayoutManager(new GridLayoutManager(requireContext(), 2));
         rvProducts.setNestedScrollingEnabled(false);
@@ -106,6 +112,11 @@ public class HomeFragment extends Fragment {
         if (itemAnimator instanceof SimpleItemAnimator) {
             ((SimpleItemAnimator) itemAnimator).setSupportsChangeAnimations(false);
         }
+    }
+
+    private void openProductDetail(Product product, String imageUrl, String categoryName) {
+        ProductDetailBottomSheetFragment bottomSheet = ProductDetailBottomSheetFragment.newInstance(product, imageUrl, categoryName);
+        bottomSheet.show(getChildFragmentManager(), "product_detail");
     }
 
     private void setupObservers() {
@@ -122,7 +133,13 @@ public class HomeFragment extends Fragment {
             if (categories != null) {
                 categoryList.addAll(categories);
             }
-            categoryAdapter.submitList(new ArrayList<>(categoryList));
+            // Initially show only 4 categories
+            List<Category> displayCategories = new ArrayList<>();
+            for (int i = 0; i < Math.min(4, categoryList.size()); i++) {
+                displayCategories.add(categoryList.get(i));
+            }
+            categoryAdapter.submitList(displayCategories);
+            updateViewAllText();
             rebuildCategoryMap();
 
             productList.clear();
@@ -213,17 +230,46 @@ public class HomeFragment extends Fragment {
     }
 
     private void setupClicks() {
-        layoutSearch.setOnClickListener(v ->
-                Toast.makeText(requireContext(), "Mở màn tìm kiếm", Toast.LENGTH_SHORT).show()
-        );
-
-        layoutNotification.setOnClickListener(v ->
-                Toast.makeText(requireContext(), "Mở thông báo", Toast.LENGTH_SHORT).show()
-        );
-
-        tvViewAll.setOnClickListener(v ->
-                Toast.makeText(requireContext(), "Xem tất cả danh mục", Toast.LENGTH_SHORT).show()
-        );
+        layoutSearch.setOnClickListener(v -> navigateToSearch());
+        
+        layoutNotification.setOnClickListener(v -> showNotificationBottomSheet());
+        
+        tvViewAll.setOnClickListener(v -> toggleCategories());
+    }
+    
+    private void navigateToSearch() {
+        NavController navController = NavHostFragment.findNavController(this);
+        navController.navigate(R.id.searchFragment);
+    }
+    
+    private void showNotificationBottomSheet() {
+        NotificationBottomSheetFragment bottomSheet = new NotificationBottomSheetFragment();
+        bottomSheet.show(getChildFragmentManager(), "notifications");
+    }
+    
+    private void toggleCategories() {
+        isExpandedCategories = !isExpandedCategories;
+        
+        List<Category> displayCategories = new ArrayList<>();
+        if (isExpandedCategories) {
+            displayCategories.addAll(categoryList);
+        } else {
+            for (int i = 0; i < Math.min(4, categoryList.size()); i++) {
+                displayCategories.add(categoryList.get(i));
+            }
+        }
+        
+        categoryAdapter.submitList(displayCategories);
+        updateViewAllText();
+    }
+    
+    private void updateViewAllText() {
+        if (categoryList.size() > 4) {
+            tvViewAll.setVisibility(View.VISIBLE);
+            tvViewAll.setText(isExpandedCategories ? "Ẩn bớt" : "Xem tất cả");
+        } else {
+            tvViewAll.setVisibility(View.GONE);
+        }
     }
 
     private int dpToPx(int dp) {

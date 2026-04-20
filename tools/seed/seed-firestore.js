@@ -4,9 +4,11 @@ const path = require("path");
 
 const keyPath = path.join(__dirname, "serviceAccountKey.json");
 const dataPath = path.join(__dirname, "seed-data.json");
+const reviewsPath = path.join(__dirname, "seed-reviews.json");
 
 const serviceAccount = require(keyPath);
 const seedData = JSON.parse(fs.readFileSync(dataPath, "utf8"));
+const seedReviews = JSON.parse(fs.readFileSync(reviewsPath, "utf8"));
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
@@ -32,6 +34,8 @@ async function run() {
   try {
     await upsertCollection("categories", seedData.categories);
     await upsertCollection("products", seedData.products);
+    await upsertCollection("reviews", seedReviews.reviews);
+    await upsertCollection("discount_codes", seedReviews.discount_codes);
     console.log("Seed completed.");
     process.exit(0);
   } catch (e) {

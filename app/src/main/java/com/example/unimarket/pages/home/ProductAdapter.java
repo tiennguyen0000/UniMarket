@@ -27,13 +27,23 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
         void onProductClick(Product product);
     }
 
+    public interface OnProductDetailClickListener {
+        void onProductDetailClick(Product product, String imageUrl, String categoryName);
+    }
+
     private final List<Product> items = new ArrayList<>();
     private final Map<String, String> categoryNameMap = new HashMap<>();
     private final Map<String, String> productImageMap = new HashMap<>();
     private final Set<String> favoriteIds = new HashSet<>();
     private final OnProductClickListener clickListener;
+    private final OnProductDetailClickListener detailClickListener;
 
     public ProductAdapter(List<Product> initialItems, Map<String, String> initialCategoryNames, OnProductClickListener clickListener) {
+        this(initialItems, initialCategoryNames, clickListener, null);
+    }
+
+    public ProductAdapter(List<Product> initialItems, Map<String, String> initialCategoryNames, 
+                         OnProductClickListener clickListener, OnProductDetailClickListener detailClickListener) {
         if (initialItems != null) {
             items.addAll(initialItems);
         }
@@ -41,6 +51,7 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
             categoryNameMap.putAll(initialCategoryNames);
         }
         this.clickListener = clickListener;
+        this.detailClickListener = detailClickListener;
     }
 
     public void submitList(List<Product> newItems) {
@@ -148,8 +159,8 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
             tvFavorite.setTextColor(isFavorite ? 0xFFE34F4F : 0xFFB8BFCC);
 
             tvFavorite.setOnClickListener(v -> toggleFavorite(product));
-            tvAdd.setOnClickListener(v -> notifyProductClick(product));
-            itemView.setOnClickListener(v -> notifyProductClick(product));
+            tvAdd.setOnClickListener(v -> notifyProductDetailClick(product, getImageUrl(product), findCategoryName(product)));
+            itemView.setOnClickListener(v -> notifyProductDetailClick(product, getImageUrl(product), findCategoryName(product)));
         }
 
         private String findCategoryName(Product product) {
@@ -184,6 +195,19 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
             if (clickListener != null && product != null) {
                 clickListener.onProductClick(product);
             }
+        }
+
+        private void notifyProductDetailClick(Product product, String imageUrl, String categoryName) {
+            if (detailClickListener != null && product != null) {
+                detailClickListener.onProductDetailClick(product, imageUrl, categoryName);
+            }
+        }
+
+        private String getImageUrl(Product product) {
+            if (product != null && product.getId() != null) {
+                return productImageMap.get(product.getId());
+            }
+            return null;
         }
     }
 }

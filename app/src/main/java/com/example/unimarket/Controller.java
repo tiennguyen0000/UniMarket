@@ -22,7 +22,6 @@ public class Controller extends AppCompatActivity {
 	private android.view.View tabSearch;
 	private android.view.View tabOrders;
 	private android.view.View tabProfile;
-	private View imageViewMenu;
 
 	private ImageView ivTabHome;
 	private ImageView ivTabSearch;
@@ -76,7 +75,6 @@ public class Controller extends AppCompatActivity {
 		ivTabSearch = findViewById(R.id.ivTabSearch);
 		ivTabOrders = findViewById(R.id.ivTabOrders);
 		ivTabProfile = findViewById(R.id.ivTabProfile);
-		imageViewMenu = findViewById(R.id.imageViewMenu);
 
         // Text
 		tvTabHome = findViewById(R.id.tvTabHome);
@@ -90,9 +88,6 @@ public class Controller extends AppCompatActivity {
 		tabSearch.setOnClickListener(v -> navigateTo(R.id.searchFragment));
 		tabOrders.setOnClickListener(v -> navigateTo(R.id.ordersFragment));
 		tabProfile.setOnClickListener(v -> navigateTo(R.id.profileFragment));
-		imageViewMenu.setOnClickListener(v ->
-				Toast.makeText(this, "Đăng bán", Toast.LENGTH_SHORT).show()
-		);
 	}
 
 	private void navigateTo(int destinationId) {

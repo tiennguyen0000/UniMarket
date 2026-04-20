@@ -1,8 +1,9 @@
 package com.example.unimarket.data.model;
 
+import java.io.Serializable;
 import java.util.List;
 
-public class  Product {
+public class  Product implements Serializable {
     private String id;
     private String seller_id;
     private String title;
