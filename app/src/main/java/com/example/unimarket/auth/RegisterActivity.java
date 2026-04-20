@@ -75,10 +75,17 @@ public class RegisterActivity extends AppCompatActivity {
     }
 
     private void setupGoogleSignIn() {
-        GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                .requestIdToken(getString(R.string.default_web_client_id))
-                .requestEmail()
-                .build();
+        GoogleSignInOptions.Builder gsoBuilder = new GoogleSignInOptions.Builder(
+            GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestEmail();
+
+        int webClientIdRes = getResources().getIdentifier(
+            "default_web_client_id", "string", getPackageName());
+        if (webClientIdRes != 0) {
+            gsoBuilder.requestIdToken(getString(webClientIdRes));
+        }
+
+        GoogleSignInOptions gso = gsoBuilder.build();
         googleSignInClient = GoogleSignIn.getClient(this, gso);
     }
 

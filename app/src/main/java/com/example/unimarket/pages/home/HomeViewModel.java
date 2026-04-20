@@ -82,12 +82,16 @@ public class HomeViewModel extends ViewModel {
             for (int i = 0; i < maxItems; i++) {
                 topProducts.add(sortedProducts.get(i));
             }
-            updateState(null, null, topProducts, null);
+            
+            // Extract images từ Product.image_urls
+            Map<String, String> extractedImages = extractImagesFromProducts(topProducts);
+            updateState(null, null, topProducts, extractedImages);
             finishRequest();
         });
     }
 
     private void loadProductImages() {
+        // Fetch từ product_images collection để merge với ảnh từ Product.image_urls
         productImageService.fetchAll(result -> {
             Map<String, String> imageMap = new HashMap<>();
             List<ProductImage> data = result.isSuccess() ? result.getData() : null;
@@ -104,9 +108,20 @@ public class HomeViewModel extends ViewModel {
             if (!result.isSuccess() && !TextUtils.isEmpty(result.getError())) {
                 Log.d(TAG, result.getError());
             }
-            updateState(null, null, null, imageMap);
+            // Merge với current images thay vì ghi đè
+            mergeProductImages(imageMap);
             finishRequest();
         });
+    }
+
+    private void mergeProductImages(Map<String, String> newImages) {
+        HomeUiState current = uiState.getValue() != null ? uiState.getValue() : HomeUiState.initial();
+        Map<String, String> mergedImages = new HashMap<>(current.getProductImages());
+        // Merge, ưu tiên ảnh từ product_images collection
+        if (newImages != null) {
+            mergedImages.putAll(newImages);
+        }
+        updateState(null, null, null, mergedImages);
     }
 
     private void finishRequest() {
@@ -163,6 +178,25 @@ public class HomeViewModel extends ViewModel {
         images.put("fb-prod-7", "https://picsum.photos/seed/bottle66/400/300");
         images.put("fb-prod-8", "https://picsum.photos/seed/sport77/400/300");
         return images;
+    }
+
+    private Map<String, String> extractImagesFromProducts(List<Product> products) {
+        Map<String, String> imageMap = new HashMap<>();
+        if (products != null) {
+            for (Product product : products) {
+                if (product != null && product.getId() != null && product.getImage_urls() != null) {
+                    List<String> imageUrls = product.getImage_urls();
+                    if (!imageUrls.isEmpty()) {
+                        // Lấy ảnh đầu tiên từ danh sách
+                        String firstImageUrl = imageUrls.get(0);
+                        if (!TextUtils.isEmpty(firstImageUrl)) {
+                            imageMap.put(product.getId(), firstImageUrl);
+                        }
+                    }
+                }
+            }
+        }
+        return imageMap;
     }
 
     private Product createFallbackProduct(String id, String categoryId, String title, Double price, String condition) {
