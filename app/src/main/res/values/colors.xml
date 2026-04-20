@@ -3,6 +3,11 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="primary">#1A428A</color>
+    <color name="primary_light">#E0E9F7</color>
+    <color name="verification_green">#12B76A</color>
+    <color name="verification_light">#ECFDF3</color>
+    <color name="rating_star">#FAC515</color>
+    <color name="bg_profile">#F9FAFB</color>
     <color name="text_primary">#1F1F1F</color>
     <color name="text_secondary">#757575</color>
     <color name="bg_card_light">#F5F9FF</color>

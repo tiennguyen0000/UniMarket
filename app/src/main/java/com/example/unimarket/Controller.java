@@ -18,16 +18,21 @@ public class Controller extends AppCompatActivity {
 
 	private NavController navController;
 
+    // 4 tab (Home - Search - Order - Profile)
 	private android.view.View tabHome;
 	private android.view.View tabSearch;
 	private android.view.View tabOrders;
 	private android.view.View tabProfile;
+    // tab Posting
+	private View imageViewMenu;
 
+    // ImageView
 	private ImageView ivTabHome;
 	private ImageView ivTabSearch;
 	private ImageView ivTabOrders;
 	private ImageView ivTabProfile;
 
+    // Text View
 	private TextView tvTabHome;
 	private TextView tvTabSearch;
 	private TextView tvTabOrders;
@@ -88,6 +93,7 @@ public class Controller extends AppCompatActivity {
 		tabSearch.setOnClickListener(v -> navigateTo(R.id.searchFragment));
 		tabOrders.setOnClickListener(v -> navigateTo(R.id.ordersFragment));
 		tabProfile.setOnClickListener(v -> navigateTo(R.id.profileFragment));
+		imageViewMenu.setOnClickListener(v -> navigateTo(R.id.postListingFragment));
 	}
 
 	private void navigateTo(int destinationId) {
@@ -105,6 +111,17 @@ public class Controller extends AppCompatActivity {
 
 	private void updateTabSelection(NavDestination destination) {
 		int destinationId = destination.getId();
+
+		// Hide bottom navigation for specific screens
+		View bottomNav = findViewById(R.id.bottomNavCard);
+		View addButton = findViewById(R.id.imageViewMenu);
+		if (destinationId == R.id.postListingFragment) {
+			bottomNav.setVisibility(View.GONE);
+			addButton.setVisibility(View.GONE);
+		} else {
+			bottomNav.setVisibility(View.VISIBLE);
+			addButton.setVisibility(View.VISIBLE);
+		}
 
 		setTabSelected(ivTabHome, tvTabHome, destinationId == R.id.homeFragment);
 		setTabSelected(ivTabSearch, tvTabSearch, destinationId == R.id.searchFragment);
