@@ -13,6 +13,7 @@ import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
@@ -20,9 +21,11 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.navigation.fragment.NavHostFragment;
 
 import com.bumptech.glide.Glide;
 import com.example.unimarket.R;
+import com.example.unimarket.data.model.Category;
 import com.example.unimarket.data.model.Product;
 import com.google.android.material.button.MaterialButton;
 import com.google.firebase.auth.FirebaseAuth;
@@ -38,19 +41,18 @@ public class PostListingFragment extends Fragment {
     private View btnUploadImage, btnSelectCategory;
     private TextView tvImageCount, tvCategoryLabel;
     private LinearLayout layoutImages;
-    
+
     private PostListingViewModel viewModel;
     private String selectedCategoryId = null;
+    private List<Category> categoryList = new ArrayList<>();
 
-    // Launcher để mở Gallery chọn nhiều ảnh cùng lúc
+    // Launcher chọn nhiều ảnh cùng lúc
     private final ActivityResultLauncher<String> pickImagesLauncher = registerForActivityResult(
             new ActivityResultContracts.GetMultipleContents(),
             uris -> {
                 if (uris != null && !uris.isEmpty()) {
                     List<String> uriStrings = new ArrayList<>();
-                    for (Uri uri : uris) {
-                        uriStrings.add(uri.toString());
-                    }
+                    for (Uri uri : uris) uriStrings.add(uri.toString());
                     viewModel.addImages(uriStrings);
                 }
             }
@@ -58,7 +60,8 @@ public class PostListingFragment extends Fragment {
 
     @Nullable
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
+                             @Nullable Bundle savedInstanceState) {
         return inflater.inflate(R.layout.fragment_post_listing, container, false);
     }
 
@@ -80,17 +83,33 @@ public class PostListingFragment extends Fragment {
         tvCategoryLabel = view.findViewById(R.id.tvCategoryLabel);
         layoutImages = view.findViewById(R.id.layoutImages);
 
-        // Setup toolbar back button
+        // Toolbar back — dùng NavController thay cho onBackPressed() deprecated
         androidx.appcompat.widget.Toolbar toolbar = view.findViewById(R.id.toolbar);
-        toolbar.setNavigationIcon(android.R.drawable.ic_menu_revert); 
-        toolbar.setNavigationOnClickListener(v -> requireActivity().onBackPressed());
+        toolbar.setNavigationIcon(android.R.drawable.ic_menu_revert);
+        toolbar.setNavigationOnClickListener(v ->
+                NavHostFragment.findNavController(this).popBackStack()
+        );
 
+        // Handle system back button
+        requireActivity().getOnBackPressedDispatcher().addCallback(
+                getViewLifecycleOwner(), new OnBackPressedCallback(true) {
+                    @Override
+                    public void handleOnBackPressed() {
+                        NavHostFragment.findNavController(PostListingFragment.this).popBackStack();
+                    }
+                }
+        );
+
+        viewModel.loadCategories();
         observeViewModel();
         setupListeners();
     }
 
     private void observeViewModel() {
-        // Quan sát danh sách ảnh để vẽ lại UI
+        viewModel.getCategories().observe(getViewLifecycleOwner(), cats -> {
+            if (cats != null) categoryList = cats;
+        });
+
         viewModel.getSelectedImages().observe(getViewLifecycleOwner(), images -> {
             renderSelectedImages(images);
             tvImageCount.setText(images.size() + "/6 ảnh");
@@ -102,35 +121,29 @@ public class PostListingFragment extends Fragment {
         });
 
         viewModel.getPostSuccess().observe(getViewLifecycleOwner(), success -> {
-            if (success) {
+            if (Boolean.TRUE.equals(success)) {
                 Toast.makeText(requireContext(), "Đăng tin thành công!", Toast.LENGTH_SHORT).show();
-                requireActivity().onBackPressed();
+                NavHostFragment.findNavController(this).popBackStack();
             }
         });
 
         viewModel.getErrorMessage().observe(getViewLifecycleOwner(), error -> {
-            if (error != null) Toast.makeText(requireContext(), error, Toast.LENGTH_SHORT).show();
+            if (error != null && !error.isEmpty())
+                Toast.makeText(requireContext(), error, Toast.LENGTH_LONG).show();
         });
     }
 
     private void renderSelectedImages(List<String> images) {
-        // Xóa các ảnh preview cũ (giữ lại nút thêm ảnh ở vị trí 0)
         int childCount = layoutImages.getChildCount();
-        if (childCount > 1) {
-            layoutImages.removeViews(1, childCount - 1);
-        }
+        if (childCount > 1) layoutImages.removeViews(1, childCount - 1);
 
         for (String uriString : images) {
-            View itemView = LayoutInflater.from(requireContext()).inflate(R.layout.item_image_preview, layoutImages, false);
+            View itemView = LayoutInflater.from(requireContext())
+                    .inflate(R.layout.item_image_preview, layoutImages, false);
             ImageView ivPreview = itemView.findViewById(R.id.ivPreview);
             View btnDelete = itemView.findViewById(R.id.btnDelete);
-
-            Glide.with(this).load(Uri.parse(uriString)).into(ivPreview);
-            
-            btnDelete.setOnClickListener(v -> {
-                viewModel.removeImage(uriString);
-            });
-
+            Glide.with(this).load(Uri.parse(uriString)).centerCrop().into(ivPreview);
+            btnDelete.setOnClickListener(v -> viewModel.removeImage(uriString));
             layoutImages.addView(itemView);
         }
     }
@@ -146,19 +159,23 @@ public class PostListingFragment extends Fragment {
         });
 
         btnSelectCategory.setOnClickListener(v -> showCategoryDialog());
-
         btnSubmit.setOnClickListener(v -> validateAndSubmit());
     }
 
     private void showCategoryDialog() {
-        String[] categories = {"Sách & Giáo trình", "Đồ điện tử", "Thời trang", "Đồ gia dụng", "Khác"};
-        String[] categoryIds = {"cat_books", "cat_electronics", "cat_fashion", "cat_home", "cat_other"};
+        if (categoryList.isEmpty()) {
+            Toast.makeText(requireContext(), "Đang tải danh mục...", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String[] names = new String[categoryList.size()];
+        for (int i = 0; i < categoryList.size(); i++) names[i] = categoryList.get(i).getName();
 
         new AlertDialog.Builder(requireContext())
                 .setTitle("Chọn danh mục")
-                .setItems(categories, (dialog, which) -> {
-                    selectedCategoryId = categoryIds[which];
-                    tvCategoryLabel.setText(categories[which]);
+                .setItems(names, (dialog, which) -> {
+                    Category selected = categoryList.get(which);
+                    selectedCategoryId = selected.getId();
+                    tvCategoryLabel.setText(selected.getName());
                     tvCategoryLabel.setTextColor(getResources().getColor(R.color.text_primary));
                 })
                 .show();
@@ -169,15 +186,17 @@ public class PostListingFragment extends Fragment {
         String priceStr = etPrice.getText().toString().trim();
         String description = etDescription.getText().toString().trim();
 
-        if (TextUtils.isEmpty(title)) {
-            etTitle.setError("Vui lòng nhập tiêu đề");
-            return;
-        }
+        if (TextUtils.isEmpty(title)) { etTitle.setError("Vui lòng nhập tiêu đề"); return; }
+        if (TextUtils.isEmpty(priceStr)) { etPrice.setError("Vui lòng nhập giá"); return; }
         if (selectedCategoryId == null) {
             Toast.makeText(requireContext(), "Vui lòng chọn danh mục", Toast.LENGTH_SHORT).show();
             return;
         }
-        
+        if (rgCondition.getCheckedRadioButtonId() == -1) {
+            Toast.makeText(requireContext(), "Vui lòng chọn tình trạng", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         Product product = new Product();
         product.setTitle(title);
         product.setDescription(description);
@@ -188,11 +207,10 @@ public class PostListingFragment extends Fragment {
             etPrice.setError("Giá không hợp lệ");
             return;
         }
-        
         product.setSeller_id(FirebaseAuth.getInstance().getUid());
-        product.setStatus("AVAILABLE");
+        product.setStatus("active");
         product.setCondition(rgCondition.getCheckedRadioButtonId() == R.id.rbNew ? "NEW" : "USED");
-        
+
         viewModel.submitProduct(product);
     }
 }

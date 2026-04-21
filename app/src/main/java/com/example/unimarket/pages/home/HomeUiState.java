@@ -13,16 +13,19 @@ public class HomeUiState {
     private final List<Category> categories;
     private final List<Product> products;
     private final Map<String, String> productImages;
+    private final Map<String, String> sellerAvatars;
 
-    public HomeUiState(boolean loading, List<Category> categories, List<Product> products, Map<String, String> productImages) {
+    public HomeUiState(boolean loading, List<Category> categories, List<Product> products, 
+                       Map<String, String> productImages, Map<String, String> sellerAvatars) {
         this.loading = loading;
         this.categories = categories != null ? categories : new ArrayList<>();
         this.products = products != null ? products : new ArrayList<>();
         this.productImages = productImages != null ? productImages : new HashMap<>();
+        this.sellerAvatars = sellerAvatars != null ? sellerAvatars : new HashMap<>();
     }
 
     public static HomeUiState initial() {
-        return new HomeUiState(false, new ArrayList<>(), new ArrayList<>(), new HashMap<>());
+        return new HomeUiState(false, new ArrayList<>(), new ArrayList<>(), new HashMap<>(), new HashMap<>());
     }
 
     public boolean isLoading() {
@@ -39,5 +42,9 @@ public class HomeUiState {
 
     public Map<String, String> getProductImages() {
         return productImages;
+    }
+
+    public Map<String, String> getSellerAvatars() {
+        return sellerAvatars;
     }
 }

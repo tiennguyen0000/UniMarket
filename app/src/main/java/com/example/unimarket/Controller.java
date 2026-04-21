@@ -18,21 +18,21 @@ public class Controller extends AppCompatActivity {
 
 	private NavController navController;
 
-    // 4 tab (Home - Search - Order - Profile)
+	// 4 tab (Home - Search - Order - Profile)
 	private android.view.View tabHome;
 	private android.view.View tabSearch;
 	private android.view.View tabOrders;
 	private android.view.View tabProfile;
-    // tab Posting
+	// tab Posting
 	private View imageViewMenu;
 
-    // ImageView
+	// ImageView
 	private ImageView ivTabHome;
 	private ImageView ivTabSearch;
 	private ImageView ivTabOrders;
 	private ImageView ivTabProfile;
 
-    // Text View
+	// Text View
 	private TextView tvTabHome;
 	private TextView tvTabSearch;
 	private TextView tvTabOrders;
@@ -45,7 +45,7 @@ public class Controller extends AppCompatActivity {
 
 		initViews();
 
-        // NavHostFragment (include fragment Home - Search - Order - Profile)
+		// NavHostFragment (include fragment Home - Search - Order - Profile)
 		NavHostFragment navHostFragment = (NavHostFragment) getSupportFragmentManager()
 				.findFragmentById(R.id.controllerNavHost);
 
@@ -56,12 +56,10 @@ public class Controller extends AppCompatActivity {
 		navController = navHostFragment.getNavController();
 		setupClicks();
 
+		navController.addOnDestinationChangedListener(
+				(controller, destination, arguments) -> updateTabSelection(destination));
 
-		navController.addOnDestinationChangedListener((controller, destination, arguments) ->
-				updateTabSelection(destination)
-		);
-
-        // Setup original tab selections
+		// Setup original tab selections
 		NavDestination currentDestination = navController.getCurrentDestination();
 		if (currentDestination != null) {
 			updateTabSelection(currentDestination);
@@ -69,22 +67,25 @@ public class Controller extends AppCompatActivity {
 	}
 
 	private void initViews() {
-        // Tab
-		tabHome = findViewById(R.id.tabHome);
-		tabSearch = findViewById(R.id.tabSearch);
-		tabOrders = findViewById(R.id.tabOrders);
+		// Tab
+		tabHome    = findViewById(R.id.tabHome);
+		tabSearch  = findViewById(R.id.tabSearch);
+		tabOrders  = findViewById(R.id.tabOrders);
 		tabProfile = findViewById(R.id.tabProfile);
 
-        // Icon
-		ivTabHome = findViewById(R.id.ivTabHome);
-		ivTabSearch = findViewById(R.id.ivTabSearch);
-		ivTabOrders = findViewById(R.id.ivTabOrders);
+		// FAB "+" giữa bottom bar
+		imageViewMenu = findViewById(R.id.imageViewMenu);
+
+		// Icon
+		ivTabHome    = findViewById(R.id.ivTabHome);
+		ivTabSearch  = findViewById(R.id.ivTabSearch);
+		ivTabOrders  = findViewById(R.id.ivTabOrders);
 		ivTabProfile = findViewById(R.id.ivTabProfile);
 
-        // Text
-		tvTabHome = findViewById(R.id.tvTabHome);
-		tvTabSearch = findViewById(R.id.tvTabSearch);
-		tvTabOrders = findViewById(R.id.tvTabOrders);
+		// Text
+		tvTabHome    = findViewById(R.id.tvTabHome);
+		tvTabSearch  = findViewById(R.id.tvTabSearch);
+		tvTabOrders  = findViewById(R.id.tvTabOrders);
 		tvTabProfile = findViewById(R.id.tvTabProfile);
 	}
 
@@ -114,13 +115,12 @@ public class Controller extends AppCompatActivity {
 
 		// Hide bottom navigation for specific screens
 		View bottomNav = findViewById(R.id.bottomNavCard);
-		View addButton = findViewById(R.id.imageViewMenu);
 		if (destinationId == R.id.postListingFragment) {
 			bottomNav.setVisibility(View.GONE);
-			addButton.setVisibility(View.GONE);
+			if (imageViewMenu != null) imageViewMenu.setVisibility(View.GONE);
 		} else {
 			bottomNav.setVisibility(View.VISIBLE);
-			addButton.setVisibility(View.VISIBLE);
+			if (imageViewMenu != null) imageViewMenu.setVisibility(View.VISIBLE);
 		}
 
 		setTabSelected(ivTabHome, tvTabHome, destinationId == R.id.homeFragment);

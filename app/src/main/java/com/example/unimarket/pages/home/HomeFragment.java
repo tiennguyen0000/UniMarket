@@ -153,6 +153,11 @@ public class HomeFragment extends Fragment {
                 productImageById.putAll(images);
             }
             productAdapter.setProductImageMap(new HashMap<>(productImageById));
+
+            Map<String, String> avatars = state.getSellerAvatars();
+            if (avatars != null) {
+                productAdapter.setSellerAvatarMap(new HashMap<>(avatars));
+            }
         });
 
         homeViewModel.getUiEvent().observe(getViewLifecycleOwner(), event -> {

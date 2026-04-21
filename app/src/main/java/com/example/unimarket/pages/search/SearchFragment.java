@@ -174,12 +174,14 @@ public class SearchFragment extends Fragment {
             double price = product.getPrice() != null ? product.getPrice() : 0;
             if (price < minPrice || price > maxPrice) continue;
             
-            // Check condition filter (status)
-            String status = product.getStatus();
+            // Check condition filter (dùng getCondition() chứ không phải getStatus())
+            String condition = product.getCondition();
             if (filterNew || filterUsed) {
-                boolean isNew = "new".equalsIgnoreCase(status);
+                boolean isNew = "new".equalsIgnoreCase(condition) || "NEW".equals(condition);
+                boolean isUsed = "used".equalsIgnoreCase(condition) || "good".equalsIgnoreCase(condition)
+                        || "USED".equals(condition);
                 if (filterNew && !isNew) continue;
-                if (filterUsed && isNew) continue;
+                if (filterUsed && !isUsed) continue;
             }
             
             filteredProductList.add(product);

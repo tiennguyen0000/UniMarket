@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="@drawable/bg_item_product_card"
@@ -38,6 +39,21 @@
             android:text="♡"
             android:textColor="#B8BFCC"
             android:textSize="19sp" />
+
+        <!-- Seller Avatar -->
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/ivSellerAvatar"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_gravity="bottom|start"
+            android:layout_margin="8dp"
+            android:padding="1.5dp"
+            android:background="@color/white"
+            android:scaleType="centerCrop"
+            app:shapeAppearanceOverlay="@style/CircleImage"
+            android:src="@drawable/ic_user_placeholder"
+            app:strokeColor="@color/white"
+            app:strokeWidth="1dp" />
     </FrameLayout>
 
     <TextView

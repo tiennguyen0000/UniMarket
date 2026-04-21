@@ -65,7 +65,8 @@ public class LoginActivity extends AppCompatActivity {
     protected void onStart() {
         super.onStart();
         FirebaseUser currentUser = mAuth.getCurrentUser();
-        if (currentUser == null) return;
+        if (currentUser == null)
+            return;
 
         // Google accounts
         boolean isGoogleUser = false;
@@ -103,6 +104,7 @@ public class LoginActivity extends AppCompatActivity {
                 setLoading(false);
                 navigateToMain();
             }
+
             @Override
             public void onError(String error) {
                 setLoading(false);
@@ -114,26 +116,26 @@ public class LoginActivity extends AppCompatActivity {
     // ─── Init ─────────────────────────────────────────────────────────────────
 
     private void initViews() {
-        tilEmail         = findViewById(R.id.tilEmail);
-        tilPassword      = findViewById(R.id.tilPassword);
-        etEmail          = findViewById(R.id.etEmail);
-        etPassword       = findViewById(R.id.etPassword);
-        btnLogin         = findViewById(R.id.btnLogin);
-        btnGoogleLogin   = findViewById(R.id.btnGoogleLogin);
+        tilEmail = findViewById(R.id.tilEmail);
+        tilPassword = findViewById(R.id.tilPassword);
+        etEmail = findViewById(R.id.etEmail);
+        etPassword = findViewById(R.id.etPassword);
+        btnLogin = findViewById(R.id.btnLogin);
+        btnGoogleLogin = findViewById(R.id.btnGoogleLogin);
         tvForgotPassword = findViewById(R.id.tvForgotPassword);
-        tvRegister       = findViewById(R.id.tvRegister);
-        progressBar      = findViewById(R.id.progressBar);
+        tvRegister = findViewById(R.id.tvRegister);
+        progressBar = findViewById(R.id.progressBar);
 
         findViewById(R.id.btnBack).setOnClickListener(v -> onBackPressed());
     }
 
     private void setupGoogleSignIn() {
         GoogleSignInOptions.Builder gsoBuilder = new GoogleSignInOptions.Builder(
-            GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestEmail();
+                GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestEmail();
 
         int webClientIdRes = getResources().getIdentifier(
-            "default_web_client_id", "string", getPackageName());
+                "default_web_client_id", "string", getPackageName());
         if (webClientIdRes != 0) {
             gsoBuilder.requestIdToken(getString(webClientIdRes));
         }
@@ -146,8 +148,7 @@ public class LoginActivity extends AppCompatActivity {
         btnLogin.setOnClickListener(v -> attemptLogin());
         btnGoogleLogin.setOnClickListener(v -> signInWithGoogle());
 
-        tvForgotPassword.setOnClickListener(v ->
-                startActivity(new Intent(this, ForgotPasswordActivity.class)));
+        tvForgotPassword.setOnClickListener(v -> startActivity(new Intent(this, ForgotPasswordActivity.class)));
 
         tvRegister.setOnClickListener(v -> {
             startActivity(new Intent(this, RegisterActivity.class));
@@ -156,12 +157,14 @@ public class LoginActivity extends AppCompatActivity {
 
         // Clear errors on typing
         etEmail.addTextChangedListener(new SimpleTextWatcher() {
-            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
                 tilEmail.setError(null);
             }
         });
         etPassword.addTextChangedListener(new SimpleTextWatcher() {
-            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
                 tilPassword.setError(null);
             }
         });
@@ -170,9 +173,10 @@ public class LoginActivity extends AppCompatActivity {
     // ─── EMAIL/PASSWORD LOGIN ─────────────────────────────────────────────────
 
     private void attemptLogin() {
-        if (!validateInputs()) return;
+        if (!validateInputs())
+            return;
 
-        String email    = etEmail.getText().toString().trim();
+        String email = etEmail.getText().toString().trim();
         String password = etPassword.getText().toString();
 
         setLoading(true);
@@ -186,7 +190,8 @@ public class LoginActivity extends AppCompatActivity {
                         } else {
                             setLoading(false);
                             // Gửi lại email verify rồi chuyển sang màn hình verify
-                            if (user != null) user.sendEmailVerification();
+                            if (user != null)
+                                user.sendEmailVerification();
                             navigateToVerifyEmail(email);
                         }
                     } else {
@@ -199,7 +204,7 @@ public class LoginActivity extends AppCompatActivity {
     private boolean validateInputs() {
         boolean valid = true;
 
-        String email    = etEmail.getText() != null ? etEmail.getText().toString().trim() : "";
+        String email = etEmail.getText() != null ? etEmail.getText().toString().trim() : "";
         String password = etPassword.getText() != null ? etPassword.getText().toString() : "";
 
         if (TextUtils.isEmpty(email)) {
@@ -310,7 +315,12 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private abstract static class SimpleTextWatcher implements android.text.TextWatcher {
-        @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-        @Override public void afterTextChanged(android.text.Editable s) {}
+        @Override
+        public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+        }
+
+        @Override
+        public void afterTextChanged(android.text.Editable s) {
+        }
     }
 }

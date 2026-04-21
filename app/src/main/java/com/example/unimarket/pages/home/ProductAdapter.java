@@ -34,6 +34,7 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
     private final List<Product> items = new ArrayList<>();
     private final Map<String, String> categoryNameMap = new HashMap<>();
     private final Map<String, String> productImageMap = new HashMap<>();
+    private final Map<String, String> sellerAvatarMap = new HashMap<>();
     private final Set<String> favoriteIds = new HashSet<>();
     private final OnProductClickListener clickListener;
     private final OnProductDetailClickListener detailClickListener;
@@ -78,6 +79,14 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
         notifyDataSetChanged();
     }
 
+    public void setSellerAvatarMap(Map<String, String> newSellerAvatarMap) {
+        sellerAvatarMap.clear();
+        if (newSellerAvatarMap != null) {
+            sellerAvatarMap.putAll(newSellerAvatarMap);
+        }
+        notifyDataSetChanged();
+    }
+
     @NonNull
     @Override
     public ProductViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -99,6 +108,7 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
     class ProductViewHolder extends RecyclerView.ViewHolder {
         private final ImageView ivProductImage;
         private final ImageView ivFallbackIcon;
+        private final ImageView ivSellerAvatar;
         private final TextView tvCategory;
         private final TextView tvName;
         private final TextView tvMeta;
@@ -110,6 +120,7 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
             super(itemView);
             ivProductImage = itemView.findViewById(R.id.ivProductImage);
             ivFallbackIcon = itemView.findViewById(R.id.ivProductFallbackIcon);
+            ivSellerAvatar = itemView.findViewById(R.id.ivSellerAvatar);
             tvCategory = itemView.findViewById(R.id.tvProductCategory);
             tvName = itemView.findViewById(R.id.tvProductName);
             tvMeta = itemView.findViewById(R.id.tvProductMeta);
@@ -125,7 +136,11 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
                     : "San pham";
 
             if (product != null && product.getId() != null) {
+                // Ưu tiên lấy ảnh từ map, nếu không có thì lấy ảnh đầu tiên trong image_urls của Product
                 String imageUrl = productImageMap.get(product.getId());
+                if (TextUtils.isEmpty(imageUrl) && product.getImage_urls() != null && !product.getImage_urls().isEmpty()) {
+                    imageUrl = product.getImage_urls().get(0);
+                }
 
                 if (!TextUtils.isEmpty(imageUrl)) {
                     ivProductImage.setVisibility(View.VISIBLE);
@@ -134,16 +149,28 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
                     Glide.with(itemView.getContext())
                             .load(imageUrl)
                             .centerCrop()
+                            .placeholder(R.drawable.bg_light_grey_rounded)
+                            .error(HomeUiUtils.iconResForCategoryName(categoryName))
                             .into(ivProductImage);
                 } else {
                     ivProductImage.setVisibility(View.GONE);
                     ivFallbackIcon.setVisibility(View.VISIBLE);
                     ivFallbackIcon.setImageResource(HomeUiUtils.iconResForCategoryName(categoryName));
                 }
+
+                // Load Seller Avatar
+                String sellerAvatarUrl = sellerAvatarMap.get(product.getSeller_id());
+                Glide.with(itemView.getContext())
+                        .load(!TextUtils.isEmpty(sellerAvatarUrl) ? sellerAvatarUrl : R.drawable.ic_user_placeholder)
+                        .circleCrop()
+                        .placeholder(R.drawable.ic_user_placeholder)
+                        .error(R.drawable.ic_user_placeholder)
+                        .into(ivSellerAvatar);
             } else {
                 ivProductImage.setVisibility(View.GONE);
                 ivFallbackIcon.setVisibility(View.VISIBLE);
                 ivFallbackIcon.setImageResource(HomeUiUtils.iconResForCategoryName(categoryName));
+                ivSellerAvatar.setImageResource(R.drawable.ic_user_placeholder);
             }
 
             tvCategory.setText(categoryName.toUpperCase(Locale.ROOT));

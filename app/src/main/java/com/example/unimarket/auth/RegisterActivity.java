@@ -49,38 +49,38 @@ public class RegisterActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_register);
-        
+
         mAuth = FirebaseAuth.getInstance();
-        
+
         initViews();
         setupGoogleSignIn();
         setupListeners();
     }
 
     private void initViews() {
-        tilFullName        = findViewById(R.id.tilFullName);
-        tilEmail           = findViewById(R.id.tilEmail);
-        tilPassword        = findViewById(R.id.tilPassword);
+        tilFullName = findViewById(R.id.tilFullName);
+        tilEmail = findViewById(R.id.tilEmail);
+        tilPassword = findViewById(R.id.tilPassword);
         tilConfirmPassword = findViewById(R.id.tilConfirmPassword);
-        etFullName         = findViewById(R.id.etFullName);
-        etEmail            = findViewById(R.id.etEmail);
-        etPassword         = findViewById(R.id.etPassword);
-        etConfirmPassword  = findViewById(R.id.etConfirmPassword);
-        btnRegister        = findViewById(R.id.btnRegister);
-        btnGoogleRegister  = findViewById(R.id.btnGoogleRegister);
-        tvLogin            = findViewById(R.id.tvLogin);
-        progressBar        = findViewById(R.id.progressBar);
+        etFullName = findViewById(R.id.etFullName);
+        etEmail = findViewById(R.id.etEmail);
+        etPassword = findViewById(R.id.etPassword);
+        etConfirmPassword = findViewById(R.id.etConfirmPassword);
+        btnRegister = findViewById(R.id.btnRegister);
+        btnGoogleRegister = findViewById(R.id.btnGoogleRegister);
+        tvLogin = findViewById(R.id.tvLogin);
+        progressBar = findViewById(R.id.progressBar);
 
         findViewById(R.id.btnBack).setOnClickListener(v -> onBackPressed());
     }
 
     private void setupGoogleSignIn() {
         GoogleSignInOptions.Builder gsoBuilder = new GoogleSignInOptions.Builder(
-            GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestEmail();
+                GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestEmail();
 
         int webClientIdRes = getResources().getIdentifier(
-            "default_web_client_id", "string", getPackageName());
+                "default_web_client_id", "string", getPackageName());
         if (webClientIdRes != 0) {
             gsoBuilder.requestIdToken(getString(webClientIdRes));
         }
@@ -105,10 +105,11 @@ public class RegisterActivity extends AppCompatActivity {
     }
 
     private void attemptRegister() {
-        if (!validateInputs()) return;
+        if (!validateInputs())
+            return;
 
         String fullName = etFullName.getText().toString().trim();
-        String email    = etEmail.getText().toString().trim();
+        String email = etEmail.getText().toString().trim();
         String password = etPassword.getText().toString();
 
         setLoading(true);
@@ -158,9 +159,9 @@ public class RegisterActivity extends AppCompatActivity {
     private boolean validateInputs() {
         boolean valid = true;
 
-        String fullName       = etFullName.getText() != null ? etFullName.getText().toString().trim() : "";
-        String email          = etEmail.getText() != null ? etEmail.getText().toString().trim() : "";
-        String password       = etPassword.getText() != null ? etPassword.getText().toString() : "";
+        String fullName = etFullName.getText() != null ? etFullName.getText().toString().trim() : "";
+        String email = etEmail.getText() != null ? etEmail.getText().toString().trim() : "";
+        String password = etPassword.getText() != null ? etPassword.getText().toString() : "";
         String confirmPassword = etConfirmPassword.getText() != null ? etConfirmPassword.getText().toString() : "";
 
         if (TextUtils.isEmpty(fullName)) {
@@ -306,11 +307,18 @@ public class RegisterActivity extends AppCompatActivity {
 
     private android.text.TextWatcher clearError(TextInputLayout til) {
         return new android.text.TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
                 til.setError(null);
             }
-            @Override public void afterTextChanged(android.text.Editable s) {}
+
+            @Override
+            public void afterTextChanged(android.text.Editable s) {
+            }
         };
     }
 }
