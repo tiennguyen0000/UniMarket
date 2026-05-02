@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class HomeViewModel extends ViewModel {
     private static final String TAG = "HomeViewModel";
     private static final int REQUEST_COUNT = 3;
+    private static final int DEFAULT_HOME_PRODUCT_LIMIT = 12;
 
     private final CategoryService categoryService = new CategoryService();
     private final ProductService productService = new ProductService();
@@ -39,10 +40,18 @@ public class HomeViewModel extends ViewModel {
     public LiveData<HomeUiEvent> getUiEvent() { return uiEvent; }
 
     public void loadHomeData() {
+        loadData(DEFAULT_HOME_PRODUCT_LIMIT);
+    }
+
+    public void loadCatalogData() {
+        loadData(null);
+    }
+
+    private void loadData(Integer productLimit) {
         pendingRequests = REQUEST_COUNT;
         updateState(true, null, null, null, null);
         loadCategories();
-        loadProducts();
+        loadProducts(productLimit);
         loadProductImages();
     }
 
@@ -58,7 +67,7 @@ public class HomeViewModel extends ViewModel {
         });
     }
 
-    private void loadProducts() {
+    private void loadProducts(Integer productLimit) {
         productService.fetchAll(result -> {
             List<Product> data = result.isSuccess() ? result.getData() : null;
             if (data == null || data.isEmpty()) {
@@ -68,12 +77,15 @@ public class HomeViewModel extends ViewModel {
             }
 
             List<Product> sortedProducts = new ArrayList<>(data);
-            sortedProducts.sort(Comparator.comparing((Product p) ->
-                    p != null && p.getId() != null ? p.getId() : "").reversed());
+            sortedProducts.sort(Comparator.comparing(this::buildSortKey).reversed());
 
-            int maxItems = Math.min(sortedProducts.size(), 12);
+            int maxItems = productLimit != null
+                    ? Math.min(sortedProducts.size(), Math.max(productLimit, 0))
+                    : sortedProducts.size();
             List<Product> topProducts = new ArrayList<>();
-            for (int i = 0; i < maxItems; i++) topProducts.add(sortedProducts.get(i));
+            for (int i = 0; i < maxItems; i++) {
+                topProducts.add(sortedProducts.get(i));
+            }
 
             Map<String, String> extractedImages = extractImagesFromProducts(topProducts);
             updateState(null, null, topProducts, extractedImages, null);
@@ -97,7 +109,6 @@ public class HomeViewModel extends ViewModel {
         AtomicInteger count = new AtomicInteger(0);
 
         for (String sellerId : sellerIds) {
-            // Dùng fetchById (trả Result<T>) thay vì getById (trả ItemCallback<T>)
             userService.fetchById(sellerId, result -> {
                 if (result.isSuccess() && result.getData() != null
                         && !TextUtils.isEmpty(result.getData().getAvatar_url())) {
@@ -180,31 +191,39 @@ public class HomeViewModel extends ViewModel {
         return imageMap;
     }
 
-    // ─── Fallback data khi không có network ───────────────────────────────────
+    private String buildSortKey(Product product) {
+        if (product == null) {
+            return "";
+        }
+        if (!TextUtils.isEmpty(product.getCreated_at())) {
+            return product.getCreated_at();
+        }
+        return product.getId() != null ? product.getId() : "";
+    }
 
     private List<Category> buildFallbackCategories() {
         List<Category> fb = new ArrayList<>();
-        fb.add(new Category("cat_laptop",      "Laptop & Máy tính",               null));
-        fb.add(new Category("cat_phone",       "Điện thoại & Máy tính bảng",      null));
-        fb.add(new Category("cat_books",       "Giáo trình & Sách",               null));
-        fb.add(new Category("cat_accessories", "Phụ kiện công nghệ",              null));
-        fb.add(new Category("cat_stationery",  "Dụng cụ học tập",                 null));
-        fb.add(new Category("cat_dorm",        "Đồ dùng phòng trọ",               null));
-        fb.add(new Category("cat_fashion",     "Thời trang sinh viên",            null));
-        fb.add(new Category("cat_sport",       "Thể thao & Giải trí",             null));
+        fb.add(new Category("cat_laptop",      "Laptop & MÃ¡y tÃ­nh",               null));
+        fb.add(new Category("cat_phone",       "Äiá»‡n thoáº¡i & MÃ¡y tÃ­nh báº£ng",      null));
+        fb.add(new Category("cat_books",       "GiÃ¡o trÃ¬nh & SÃ¡ch",               null));
+        fb.add(new Category("cat_accessories", "Phá»¥ kiá»‡n cÃ´ng nghá»‡",              null));
+        fb.add(new Category("cat_stationery",  "Dá»¥ng cá»¥ há»c táº­p",                 null));
+        fb.add(new Category("cat_dorm",        "Äá»“ dÃ¹ng phÃ²ng trá»",               null));
+        fb.add(new Category("cat_fashion",     "Thá»i trang sinh viÃªn",            null));
+        fb.add(new Category("cat_sport",       "Thá»ƒ thao & Giáº£i trÃ­",             null));
         return fb;
     }
 
     private List<Product> buildFallbackProducts() {
         List<Product> fb = new ArrayList<>();
         fb.add(makeFallback("fb-1", "cat_laptop",      "MacBook Air M1 8GB/256GB",     14_500_000d, "used"));
-        fb.add(makeFallback("fb-2", "cat_books",       "Giáo trình Giải tích 1",          45_000d, "used"));
+        fb.add(makeFallback("fb-2", "cat_books",       "GiÃ¡o trÃ¬nh Giáº£i tÃ­ch 1",          45_000d, "used"));
         fb.add(makeFallback("fb-3", "cat_accessories", "Tai nghe Sony WH-1000XM4",      890_000d, "used"));
-        fb.add(makeFallback("fb-4", "cat_dorm",        "Nồi cơm mini 1.2L",             280_000d, "used"));
-        fb.add(makeFallback("fb-5", "cat_accessories", "Bàn phím cơ Keychron K2",       650_000d, "good"));
+        fb.add(makeFallback("fb-4", "cat_dorm",        "Ná»“i cÆ¡m mini 1.2L",             280_000d, "used"));
+        fb.add(makeFallback("fb-5", "cat_accessories", "BÃ n phÃ­m cÆ¡ Keychron K2",       650_000d, "good"));
         fb.add(makeFallback("fb-6", "cat_phone",       "Samsung Galaxy A54 5G 128GB",  4_200_000d, "used"));
-        fb.add(makeFallback("fb-7", "cat_dorm",        "Quạt sạc điện Sunhouse",        320_000d, "good"));
-        fb.add(makeFallback("fb-8", "cat_sport",       "Vợt cầu lông Yonex Astrox",     650_000d, "used"));
+        fb.add(makeFallback("fb-7", "cat_dorm",        "Quáº¡t sáº¡c Ä‘iá»‡n Sunhouse",        320_000d, "good"));
+        fb.add(makeFallback("fb-8", "cat_sport",       "Vá»£t cáº§u lÃ´ng Yonex Astrox",     650_000d, "used"));
         return fb;
     }
 
@@ -223,8 +242,12 @@ public class HomeViewModel extends ViewModel {
 
     private Product makeFallback(String id, String catId, String title, double price, String condition) {
         Product p = new Product();
-        p.setId(id); p.setCategory_id(catId); p.setTitle(title);
-        p.setPrice(price); p.setCondition(condition); p.setStatus("active");
+        p.setId(id);
+        p.setCategory_id(catId);
+        p.setTitle(title);
+        p.setPrice(price);
+        p.setCondition(condition);
+        p.setStatus("active");
         return p;
     }
 }

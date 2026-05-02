@@ -12,6 +12,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.GridLayoutManager;
@@ -22,9 +23,14 @@ import com.bumptech.glide.Glide;
 import com.example.unimarket.MainActivity;
 import com.example.unimarket.R;
 import com.example.unimarket.data.model.User;
+import com.example.unimarket.pages.post.PostListingFragment;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.tabs.TabLayout;
+import com.google.android.material.textfield.TextInputEditText;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+
+import java.util.Locale;
 
 public class ProfileFragment extends Fragment {
 
@@ -49,32 +55,30 @@ public class ProfileFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        tvName         = view.findViewById(R.id.tvName);
-        tvUniversity   = view.findViewById(R.id.tvUniversity);
+        tvName = view.findViewById(R.id.tvName);
+        tvUniversity = view.findViewById(R.id.tvUniversity);
         tvVerifyStatus = view.findViewById(R.id.tvVerifyStatus);
-        tvOrderCount   = view.findViewById(R.id.tvOrderCount);
-        tvPostCount    = view.findViewById(R.id.tvPostCount);
-        tvRating       = view.findViewById(R.id.tvRating);
-        ivAvatar       = view.findViewById(R.id.ivAvatar);
-        ivSettings     = view.findViewById(R.id.ivSettings);
+        tvOrderCount = view.findViewById(R.id.tvOrderCount);
+        tvPostCount = view.findViewById(R.id.tvPostCount);
+        tvRating = view.findViewById(R.id.tvRating);
+        ivAvatar = view.findViewById(R.id.ivAvatar);
+        ivSettings = view.findViewById(R.id.ivSettings);
         btnEditProfile = view.findViewById(R.id.btnEditProfile);
-        btnShare       = view.findViewById(R.id.btnShare);
-        tabLayout      = view.findViewById(R.id.tabLayout);
-        rvContent      = view.findViewById(R.id.rvContent);
+        btnShare = view.findViewById(R.id.btnShare);
+        tabLayout = view.findViewById(R.id.tabLayout);
+        rvContent = view.findViewById(R.id.rvContent);
 
-        // Adapters
         ordersAdapter = new OrdersInProfileAdapter();
-        postsAdapter  = new UserPostAdapter(product ->
+        postsAdapter = new UserPostAdapter(product ->
                 Toast.makeText(requireContext(), product.getTitle(), Toast.LENGTH_SHORT).show());
 
         rvContent.setNestedScrollingEnabled(false);
 
         profileViewModel = new ViewModelProvider(this).get(ProfileViewModel.class);
         observeViewModel();
+        setupRefreshListener();
         loadUserProfile();
         setupListeners();
-
-        // Mặc định tab đầu (Đơn hàng)
         switchTab(0);
     }
 
@@ -82,6 +86,14 @@ public class ProfileFragment extends Fragment {
         FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
         if (firebaseUser == null) return;
         profileViewModel.loadProfile(firebaseUser.getUid(), firebaseUser.getDisplayName());
+    }
+
+    private void setupRefreshListener() {
+        getParentFragmentManager().setFragmentResultListener(
+                PostListingFragment.RESULT_LISTING_CREATED,
+                getViewLifecycleOwner(),
+                (requestKey, result) -> loadUserProfile()
+        );
     }
 
     private void setupListeners() {
@@ -92,8 +104,8 @@ public class ProfileFragment extends Fragment {
             startActivity(intent);
         });
 
-        btnEditProfile.setOnClickListener(v ->
-                Toast.makeText(requireContext(), "Chỉnh sửa hồ sơ", Toast.LENGTH_SHORT).show());
+        btnEditProfile.setOnClickListener(v -> showEditProfileDialog());
+        btnShare.setOnClickListener(v -> shareProfile());
 
         tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
             @Override
@@ -106,12 +118,10 @@ public class ProfileFragment extends Fragment {
     private void switchTab(int position) {
         ProfileUiState state = profileViewModel.getUiState().getValue();
         if (position == 0) {
-            // Tab Đơn hàng
             rvContent.setLayoutManager(new LinearLayoutManager(requireContext()));
             rvContent.setAdapter(ordersAdapter);
             if (state != null) ordersAdapter.submitList(state.getOrders());
         } else {
-            // Tab Tin đăng
             rvContent.setLayoutManager(new GridLayoutManager(requireContext(), 2));
             rvContent.setAdapter(postsAdapter);
             if (state != null) postsAdapter.submitList(state.getPosts());
@@ -122,11 +132,12 @@ public class ProfileFragment extends Fragment {
         profileViewModel.getUiState().observe(getViewLifecycleOwner(), state -> {
             if (state == null) return;
 
-            // Cập nhật số đếm dù profile chưa load
             tvOrderCount.setText(String.valueOf(state.getOrders().size()));
             tvPostCount.setText(String.valueOf(state.getPosts().size()));
+            tvRating.setText(state.getRatingCount() > 0
+                    ? String.format(Locale.getDefault(), "%.1f", state.getRatingAverage())
+                    : "-");
 
-            // Refresh adapter đang hiển thị
             int tabPos = tabLayout.getSelectedTabPosition();
             if (tabPos == 0) {
                 ordersAdapter.submitList(state.getOrders());
@@ -138,13 +149,13 @@ public class ProfileFragment extends Fragment {
             if (user == null) return;
 
             tvName.setText(!TextUtils.isEmpty(user.getFull_name()) ? user.getFull_name() : "UniMarket User");
-            tvUniversity.setText(!TextUtils.isEmpty(user.getUniversity()) ? user.getUniversity() : "Chưa cập nhật trường");
+            tvUniversity.setText(!TextUtils.isEmpty(user.getUniversity()) ? user.getUniversity() : "ChÆ°a cáº­p nháº­t trÆ°á»ng");
 
             if (user.is_verified()) {
-                tvVerifyStatus.setText("Sinh viên đã xác thực");
+                tvVerifyStatus.setText("Sinh viÃªn Ä‘Ã£ xÃ¡c thá»±c");
                 tvVerifyStatus.setTextColor(getResources().getColor(R.color.verification_green));
             } else {
-                tvVerifyStatus.setText("Chưa xác thực");
+                tvVerifyStatus.setText("ChÆ°a xÃ¡c thá»±c");
                 tvVerifyStatus.setTextColor(getResources().getColor(R.color.text_secondary));
             }
 
@@ -160,8 +171,84 @@ public class ProfileFragment extends Fragment {
         });
 
         profileViewModel.getUiEvent().observe(getViewLifecycleOwner(), event -> {
-            if (event != null)
+            if (event != null) {
                 Toast.makeText(requireContext(), event.getMessage(), Toast.LENGTH_SHORT).show();
+            }
         });
+    }
+
+    private void showEditProfileDialog() {
+        ProfileUiState state = profileViewModel.getUiState().getValue();
+        User user = state != null ? state.getProfile() : null;
+
+        View dialogView = LayoutInflater.from(requireContext())
+                .inflate(R.layout.dialog_edit_profile, null, false);
+        TextInputEditText etFullName = dialogView.findViewById(R.id.etEditFullName);
+        TextInputEditText etPhone = dialogView.findViewById(R.id.etEditPhone);
+        TextInputEditText etUniversity = dialogView.findViewById(R.id.etEditUniversity);
+
+        if (user != null) {
+            etFullName.setText(user.getFull_name());
+            etPhone.setText(user.getPhone());
+            etUniversity.setText(user.getUniversity());
+        }
+
+        AlertDialog dialog = new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Chá»‰nh sá»­a há»“ sÆ¡")
+                .setView(dialogView)
+                .setNegativeButton("Há»§y", null)
+                .setPositiveButton("LÆ°u", null)
+                .create();
+
+        dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
+            if (firebaseUser == null) {
+                Toast.makeText(requireContext(), "Vui lÃ²ng Ä‘Äƒng nháº­p láº¡i", Toast.LENGTH_SHORT).show();
+                dialog.dismiss();
+                return;
+            }
+
+            String fullName = etFullName.getText() != null ? etFullName.getText().toString().trim() : "";
+            String phone = etPhone.getText() != null ? etPhone.getText().toString().trim() : "";
+            String university = etUniversity.getText() != null ? etUniversity.getText().toString().trim() : "";
+
+            if (TextUtils.isEmpty(fullName)) {
+                etFullName.setError("Vui lÃ²ng nháº­p há» vÃ  tÃªn");
+                return;
+            }
+
+            profileViewModel.saveProfile(firebaseUser.getUid(), fullName, phone, university);
+            dialog.dismiss();
+        }));
+
+        dialog.show();
+    }
+
+    private void shareProfile() {
+        ProfileUiState state = profileViewModel.getUiState().getValue();
+        User user = state != null ? state.getProfile() : null;
+        if (user == null) {
+            Toast.makeText(requireContext(), "ChÆ°a cÃ³ thÃ´ng tin há»“ sÆ¡ Ä‘á»ƒ chia sáº»", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String displayName = !TextUtils.isEmpty(user.getFull_name()) ? user.getFull_name() : "UniMarket User";
+        String university = !TextUtils.isEmpty(user.getUniversity()) ? user.getUniversity() : "UniMarket";
+        String ratingText = state != null && state.getRatingCount() > 0
+                ? String.format(Locale.getDefault(), "%.1f/5", state.getRatingAverage())
+                : "ChÆ°a cÃ³ Ä‘Ã¡nh giÃ¡";
+
+        String shareText = displayName
+                + " - " + university
+                + "\nTin Ä‘Äƒng: " + (state != null ? state.getPosts().size() : 0)
+                + "\nÄÆ¡n hÃ ng: " + (state != null ? state.getOrders().size() : 0)
+                + "\nÄÃ¡nh giÃ¡: " + ratingText
+                + "\nHá»“ sÆ¡ trÃªn UniMarket";
+
+        Intent shareIntent = new Intent(Intent.ACTION_SEND);
+        shareIntent.setType("text/plain");
+        shareIntent.putExtra(Intent.EXTRA_SUBJECT, "Há»“ sÆ¡ UniMarket");
+        shareIntent.putExtra(Intent.EXTRA_TEXT, shareText);
+        startActivity(Intent.createChooser(shareIntent, "Chia sáº» há»“ sÆ¡"));
     }
 }

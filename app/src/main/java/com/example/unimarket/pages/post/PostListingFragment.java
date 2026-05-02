@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class PostListingFragment extends Fragment {
+    public static final String RESULT_LISTING_CREATED = "listing_created";
 
     private EditText etTitle, etPrice, etDescription;
     private RadioGroup rgCondition;
@@ -46,13 +47,14 @@ public class PostListingFragment extends Fragment {
     private String selectedCategoryId = null;
     private List<Category> categoryList = new ArrayList<>();
 
-    // Launcher chọn nhiều ảnh cùng lúc
     private final ActivityResultLauncher<String> pickImagesLauncher = registerForActivityResult(
             new ActivityResultContracts.GetMultipleContents(),
             uris -> {
                 if (uris != null && !uris.isEmpty()) {
                     List<String> uriStrings = new ArrayList<>();
-                    for (Uri uri : uris) uriStrings.add(uri.toString());
+                    for (Uri uri : uris) {
+                        uriStrings.add(uri.toString());
+                    }
                     viewModel.addImages(uriStrings);
                 }
             }
@@ -71,7 +73,6 @@ public class PostListingFragment extends Fragment {
 
         viewModel = new ViewModelProvider(this).get(PostListingViewModel.class);
 
-        // Bind views
         etTitle = view.findViewById(R.id.etTitle);
         etPrice = view.findViewById(R.id.etPrice);
         etDescription = view.findViewById(R.id.etDescription);
@@ -83,14 +84,12 @@ public class PostListingFragment extends Fragment {
         tvCategoryLabel = view.findViewById(R.id.tvCategoryLabel);
         layoutImages = view.findViewById(R.id.layoutImages);
 
-        // Toolbar back — dùng NavController thay cho onBackPressed() deprecated
         androidx.appcompat.widget.Toolbar toolbar = view.findViewById(R.id.toolbar);
         toolbar.setNavigationIcon(android.R.drawable.ic_menu_revert);
         toolbar.setNavigationOnClickListener(v ->
                 NavHostFragment.findNavController(this).popBackStack()
         );
 
-        // Handle system back button
         requireActivity().getOnBackPressedDispatcher().addCallback(
                 getViewLifecycleOwner(), new OnBackPressedCallback(true) {
                     @Override
@@ -107,35 +106,41 @@ public class PostListingFragment extends Fragment {
 
     private void observeViewModel() {
         viewModel.getCategories().observe(getViewLifecycleOwner(), cats -> {
-            if (cats != null) categoryList = cats;
+            if (cats != null) {
+                categoryList = cats;
+            }
         });
 
         viewModel.getSelectedImages().observe(getViewLifecycleOwner(), images -> {
             renderSelectedImages(images);
-            tvImageCount.setText(images.size() + "/6 ảnh");
+            tvImageCount.setText(images.size() + "/6 áº£nh");
         });
 
         viewModel.getIsLoading().observe(getViewLifecycleOwner(), loading -> {
             btnSubmit.setEnabled(!loading);
-            btnSubmit.setText(loading ? "Đang xử lý..." : "Đăng tin ngay");
+            btnSubmit.setText(loading ? "Äang xá»­ lÃ½..." : "ÄÄƒng tin ngay");
         });
 
         viewModel.getPostSuccess().observe(getViewLifecycleOwner(), success -> {
             if (Boolean.TRUE.equals(success)) {
-                Toast.makeText(requireContext(), "Đăng tin thành công!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "ÄÄƒng tin thÃ nh cÃ´ng!", Toast.LENGTH_SHORT).show();
+                getParentFragmentManager().setFragmentResult(RESULT_LISTING_CREATED, new Bundle());
                 NavHostFragment.findNavController(this).popBackStack();
             }
         });
 
         viewModel.getErrorMessage().observe(getViewLifecycleOwner(), error -> {
-            if (error != null && !error.isEmpty())
+            if (error != null && !error.isEmpty()) {
                 Toast.makeText(requireContext(), error, Toast.LENGTH_LONG).show();
+            }
         });
     }
 
     private void renderSelectedImages(List<String> images) {
         int childCount = layoutImages.getChildCount();
-        if (childCount > 1) layoutImages.removeViews(1, childCount - 1);
+        if (childCount > 1) {
+            layoutImages.removeViews(1, childCount - 1);
+        }
 
         for (String uriString : images) {
             View itemView = LayoutInflater.from(requireContext())
@@ -154,7 +159,7 @@ public class PostListingFragment extends Fragment {
             if (current != null && current.size() < 6) {
                 pickImagesLauncher.launch("image/*");
             } else {
-                Toast.makeText(requireContext(), "Tối đa 6 ảnh", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "Tá»‘i Ä‘a 6 áº£nh", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -164,14 +169,16 @@ public class PostListingFragment extends Fragment {
 
     private void showCategoryDialog() {
         if (categoryList.isEmpty()) {
-            Toast.makeText(requireContext(), "Đang tải danh mục...", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Äang táº£i danh má»¥c...", Toast.LENGTH_SHORT).show();
             return;
         }
         String[] names = new String[categoryList.size()];
-        for (int i = 0; i < categoryList.size(); i++) names[i] = categoryList.get(i).getName();
+        for (int i = 0; i < categoryList.size(); i++) {
+            names[i] = categoryList.get(i).getName();
+        }
 
         new AlertDialog.Builder(requireContext())
-                .setTitle("Chọn danh mục")
+                .setTitle("Chá»n danh má»¥c")
                 .setItems(names, (dialog, which) -> {
                     Category selected = categoryList.get(which);
                     selectedCategoryId = selected.getId();
@@ -186,14 +193,20 @@ public class PostListingFragment extends Fragment {
         String priceStr = etPrice.getText().toString().trim();
         String description = etDescription.getText().toString().trim();
 
-        if (TextUtils.isEmpty(title)) { etTitle.setError("Vui lòng nhập tiêu đề"); return; }
-        if (TextUtils.isEmpty(priceStr)) { etPrice.setError("Vui lòng nhập giá"); return; }
+        if (TextUtils.isEmpty(title)) {
+            etTitle.setError("Vui lÃ²ng nháº­p tiÃªu Ä‘á»");
+            return;
+        }
+        if (TextUtils.isEmpty(priceStr)) {
+            etPrice.setError("Vui lÃ²ng nháº­p giÃ¡");
+            return;
+        }
         if (selectedCategoryId == null) {
-            Toast.makeText(requireContext(), "Vui lòng chọn danh mục", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Vui lÃ²ng chá»n danh má»¥c", Toast.LENGTH_SHORT).show();
             return;
         }
         if (rgCondition.getCheckedRadioButtonId() == -1) {
-            Toast.makeText(requireContext(), "Vui lòng chọn tình trạng", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Vui lÃ²ng chá»n tÃ¬nh tráº¡ng", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -203,11 +216,21 @@ public class PostListingFragment extends Fragment {
         product.setCategory_id(selectedCategoryId);
         try {
             product.setPrice(Double.parseDouble(priceStr));
+            if (product.getPrice() == null || product.getPrice() <= 0) {
+                etPrice.setError("GiÃ¡ pháº£i lá»›n hÆ¡n 0");
+                return;
+            }
         } catch (NumberFormatException e) {
-            etPrice.setError("Giá không hợp lệ");
+            etPrice.setError("GiÃ¡ khÃ´ng há»£p lá»‡");
             return;
         }
-        product.setSeller_id(FirebaseAuth.getInstance().getUid());
+
+        String sellerId = FirebaseAuth.getInstance().getUid();
+        if (TextUtils.isEmpty(sellerId)) {
+            Toast.makeText(requireContext(), "Vui lÃ²ng Ä‘Äƒng nháº­p Ä‘á»ƒ Ä‘Äƒng tin", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        product.setSeller_id(sellerId);
         product.setStatus("active");
         product.setCondition(rgCondition.getCheckedRadioButtonId() == R.id.rbNew ? "NEW" : "USED");
 

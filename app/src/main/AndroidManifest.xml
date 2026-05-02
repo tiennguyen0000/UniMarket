@@ -23,7 +23,6 @@
         <activity android:name=".auth.RegisterActivity"/>
         <activity android:name=".auth.ForgotPasswordActivity"/>
         <activity android:name=".auth.VerifyEmailActivity"/>
-        <activity android:name=".auth.HomeActivity"/>
         <activity android:name=".Controller"/>
         <activity android:name=".auth.LoginActivity"/>
         <activity android:name=".OnboardingActivity"/>

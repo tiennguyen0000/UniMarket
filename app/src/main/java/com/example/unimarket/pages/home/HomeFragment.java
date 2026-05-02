@@ -24,6 +24,7 @@ import com.bumptech.glide.Glide;
 import com.example.unimarket.R;
 import com.example.unimarket.data.model.Category;
 import com.example.unimarket.data.model.Product;
+import com.example.unimarket.pages.post.PostListingFragment;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 
@@ -71,6 +72,7 @@ public class HomeFragment extends Fragment {
         setupRecyclerViews();
         setupUserInfo();
         setupClicks();
+        setupRefreshListener();
         setupObservers();
         homeViewModel.loadHomeData();
     }
@@ -240,6 +242,14 @@ public class HomeFragment extends Fragment {
         layoutNotification.setOnClickListener(v -> showNotificationBottomSheet());
         
         tvViewAll.setOnClickListener(v -> toggleCategories());
+    }
+
+    private void setupRefreshListener() {
+        getParentFragmentManager().setFragmentResultListener(
+                PostListingFragment.RESULT_LISTING_CREATED,
+                getViewLifecycleOwner(),
+                (requestKey, result) -> homeViewModel.loadHomeData()
+        );
     }
     
     private void navigateToSearch() {

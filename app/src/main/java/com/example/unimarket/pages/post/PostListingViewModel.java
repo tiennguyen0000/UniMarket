@@ -13,10 +13,15 @@ import com.example.unimarket.data.service.ProductService;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
+import java.util.TimeZone;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class PostListingViewModel extends ViewModel {
@@ -64,6 +69,7 @@ public class PostListingViewModel extends ViewModel {
 
     public void submitProduct(Product product) {
         isLoading.setValue(true);
+        postSuccess.setValue(false);
         List<String> localUris = selectedImages.getValue();
         if (localUris == null || localUris.isEmpty()) {
             saveProductToFirestore(product);
@@ -73,11 +79,13 @@ public class PostListingViewModel extends ViewModel {
     }
 
     private void uploadImagesAndSave(Product product, List<String> localUris) {
-        // Dùng synchronizedList để tránh race condition khi nhiều callback cùng add
-        List<String> downloadUrls = Collections.synchronizedList(new ArrayList<>());
-        AtomicInteger uploadCount = new AtomicInteger(0);
+        List<String> downloadUrls = new ArrayList<>(Collections.nCopies(localUris.size(), null));
+        AtomicInteger completedCount = new AtomicInteger(0);
+        AtomicBoolean hasUploadFailure = new AtomicBoolean(false);
 
-        for (String uriString : localUris) {
+        for (int i = 0; i < localUris.size(); i++) {
+            final int index = i;
+            String uriString = localUris.get(i);
             Uri fileUri = Uri.parse(uriString);
             String fileName = "products/" + UUID.randomUUID() + ".jpg";
             StorageReference ref = storage.getReference().child(fileName);
@@ -87,42 +95,60 @@ public class PostListingViewModel extends ViewModel {
                 return ref.getDownloadUrl();
             }).addOnCompleteListener(task -> {
                 if (task.isSuccessful()) {
-                    downloadUrls.add(task.getResult().toString());
+                    downloadUrls.set(index, task.getResult().toString());
+                } else {
+                    hasUploadFailure.set(true);
                 }
-                if (uploadCount.incrementAndGet() == localUris.size()) {
+
+                if (completedCount.incrementAndGet() == localUris.size()) {
+                    if (hasUploadFailure.get() || downloadUrls.contains(null)) {
+                        isLoading.setValue(false);
+                        errorMessage.setValue("Upload áº£nh tháº¥t báº¡i. Tin chÆ°a Ä‘Æ°á»£c Ä‘Äƒng, vui lÃ²ng thá»­ láº¡i.");
+                        return;
+                    }
+
                     product.setImage_urls(new ArrayList<>(downloadUrls));
                     saveProductToFirestore(product);
                 }
-            }).addOnFailureListener(e -> {
-                isLoading.setValue(false);
-                errorMessage.setValue("Lỗi upload ảnh: " + e.getMessage());
             });
         }
     }
 
     private void saveProductToFirestore(Product product) {
+        String now = nowIsoUtc();
+        if (product.getCreated_at() == null || product.getCreated_at().trim().isEmpty()) {
+            product.setCreated_at(now);
+        }
+        product.setUpdated_at(now);
+
         productService.save(product, result -> {
             isLoading.setValue(false);
             if (result.isSuccess()) {
                 postSuccess.setValue(true);
             } else {
-                errorMessage.setValue("Đăng tin thất bại: " + result.getError());
+                errorMessage.setValue("ÄÄƒng tin tháº¥t báº¡i: " + result.getError());
             }
         });
     }
 
     private List<Category> buildFallbackCategories() {
         List<Category> fb = new ArrayList<>();
-        fb.add(new Category("cat_books",       "Giáo trình & Sách",          null));
-        fb.add(new Category("cat_stationery",  "Dụng cụ học tập",            null));
-        fb.add(new Category("cat_laptop",      "Laptop & Máy tính",          null));
-        fb.add(new Category("cat_phone",       "Điện thoại & Máy tính bảng", null));
-        fb.add(new Category("cat_accessories", "Phụ kiện công nghệ",         null));
-        fb.add(new Category("cat_dorm",        "Đồ dùng phòng trọ",          null));
-        fb.add(new Category("cat_fashion",     "Thời trang sinh viên",       null));
-        fb.add(new Category("cat_sport",       "Thể thao & Giải trí",        null));
-        fb.add(new Category("cat_transport",   "Phương tiện di chuyển",      null));
-        fb.add(new Category("cat_free",        "Góc 0 đồng / Cho tặng",      null));
+        fb.add(new Category("cat_books",       "GiÃ¡o trÃ¬nh & SÃ¡ch",          null));
+        fb.add(new Category("cat_stationery",  "Dá»¥ng cá»¥ há»c táº­p",            null));
+        fb.add(new Category("cat_laptop",      "Laptop & MÃ¡y tÃ­nh",          null));
+        fb.add(new Category("cat_phone",       "Äiá»‡n thoáº¡i & MÃ¡y tÃ­nh báº£ng", null));
+        fb.add(new Category("cat_accessories", "Phá»¥ kiá»‡n cÃ´ng nghá»‡",         null));
+        fb.add(new Category("cat_dorm",        "Äá»“ dÃ¹ng phÃ²ng trá»",          null));
+        fb.add(new Category("cat_fashion",     "Thá»i trang sinh viÃªn",       null));
+        fb.add(new Category("cat_sport",       "Thá»ƒ thao & Giáº£i trÃ­",        null));
+        fb.add(new Category("cat_transport",   "PhÆ°Æ¡ng tiá»‡n di chuyá»ƒn",      null));
+        fb.add(new Category("cat_free",        "GÃ³c 0 Ä‘á»“ng / Cho táº·ng",      null));
         return fb;
+    }
+
+    private String nowIsoUtc() {
+        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
+        format.setTimeZone(TimeZone.getTimeZone("UTC"));
+        return format.format(new Date());
     }
 }

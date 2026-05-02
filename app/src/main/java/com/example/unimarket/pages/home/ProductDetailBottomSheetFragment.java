@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.TimeZone;
 
 public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment {
     private static final String ARG_PRODUCT      = "product";
@@ -299,8 +300,9 @@ public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment 
         }
         order.setTotal_price(totalPrice);
         order.setStatus("pending");
-        String now = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
-                .format(new Date());
+        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
+        format.setTimeZone(TimeZone.getTimeZone("UTC"));
+        String now = format.format(new Date());
         order.setCreated_at(now);
         order.setUpdated_at(now);
 
