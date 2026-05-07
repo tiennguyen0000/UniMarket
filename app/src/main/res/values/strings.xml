@@ -1,3 +1,17 @@
 <resources>
-    <string name="app_name">unimarket</string>
+    <string name="app_name">UniMarket</string>
+    <string name="onboarding_title_1">Mua bán thông minh\ncho sinh viên</string>
+    <string name="onboarding_desc_1">Nền tảng thương mại điện tử dành riêng cho sinh viên Việt Nam. Tìm kiếm giáo trình, đồ dùng học tập dễ dàng.</string>
+    
+    <string name="onboarding_title_2">Tìm đồ dễ dàng</string>
+    <string name="onboarding_desc_2">Săn giáo trình cũ và đồ dùng học tập giá hời.\nTiết kiệm tối đa chi phí cho cuộc sống sinh viên.</string>
+    
+    <string name="onboarding_title_3">Thanh lý nhanh gọn</string>
+    <string name="onboarding_desc_3">Đăng bán đồ cũ ngay tại ký túc xá và trường học.\nKiếm thêm thu nhập từ những món đồ không dùng tới.</string>
+
+    <string name="onboarding_btn_next">Tiếp theo  ➔</string>
+    <string name="onboarding_btn_start">Bắt đầu ngay  ➔</string>
+    <string name="onboarding_btn_skip">Bỏ qua</string>
+    <string name="onboarding_feature">Giá cả sinh viên, tiết kiệm tối đa</string>
+    <string name="auth_continue_with_google">Tiếp tục với Google</string>
 </resources>

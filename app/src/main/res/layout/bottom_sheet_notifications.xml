@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_notifications_sheet"
+    android:orientation="vertical">
+
+    <View
+        android:layout_width="48dp"
+        android:layout_height="5dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_filter_handle" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="22dp"
+        android:paddingTop="18dp"
+        android:paddingEnd="22dp"
+        android:paddingBottom="14dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:text="Thông báo"
+                android:textColor="#101828"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvNotificationSubtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="Đang tải thông báo của bạn..."
+                android:textColor="#667085"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/btnMarkAllRead"
+            android:layout_width="wrap_content"
+            android:layout_height="38dp"
+            android:layout_marginEnd="10dp"
+            android:background="@drawable/bg_notification_header_action"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:text="Đã đọc"
+            android:textColor="#21409A"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+        <ImageView
+            android:id="@+id/closeButton"
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            android:background="@drawable/bg_filter_close_button"
+            android:contentDescription="Đóng"
+            android:padding="11dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/close"
+            app:tint="#667085" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="470dp"
+        android:paddingStart="18dp"
+        android:paddingEnd="18dp"
+        android:paddingBottom="18dp">
+
+        <LinearLayout
+            android:id="@+id/layoutNotificationLoading"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_notification_empty"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="28dp">
+
+            <ProgressBar
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:indeterminate="true"
+                android:indeterminateTint="#21409A" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Đang đồng bộ thông báo..."
+                android:textColor="#667085"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/layoutNotificationEmpty"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_notification_empty"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="30dp"
+            android:visibility="gone">
+
+            <ImageView
+                android:layout_width="58dp"
+                android:layout_height="58dp"
+                android:background="@drawable/bg_notification_icon_circle"
+                android:padding="15dp"
+                android:src="@drawable/notification"
+                app:tint="#21409A" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:gravity="center"
+                android:text="Chưa có thông báo mới"
+                android:textColor="#101828"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvNotificationEmptyMessage"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center"
+                android:text="Các cập nhật về đơn hàng, tin đăng và đánh giá sẽ xuất hiện tại đây."
+                android:textColor="#667085"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvNotifications"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:overScrollMode="never"
+            android:paddingBottom="6dp"
+            android:visibility="gone" />
+    </FrameLayout>
+</LinearLayout>
