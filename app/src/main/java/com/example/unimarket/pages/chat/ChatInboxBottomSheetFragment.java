@@ -38,6 +38,8 @@ public class ChatInboxBottomSheetFragment extends BottomSheetDialogFragment {
     private ConversationAdapter adapter;
     private TextView tvEmptyState;
     private RecyclerView rvConversations;
+    private boolean buyerLoaded;
+    private boolean sellerLoaded;
 
     @Nullable
     @Override
@@ -72,19 +74,20 @@ public class ChatInboxBottomSheetFragment extends BottomSheetDialogFragment {
         ImageView closeButton = view.findViewById(R.id.ivCloseInbox);
         tvEmptyState = view.findViewById(R.id.tvConversationEmptyState);
         rvConversations = view.findViewById(R.id.rvConversations);
+        closeButton.setOnClickListener(v -> dismiss());
 
         FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
         if (currentUser == null) {
             tvEmptyState.setText("Vui lòng đăng nhập để xem tin nhắn.");
             tvEmptyState.setVisibility(View.VISIBLE);
-            closeButton.setOnClickListener(v -> dismiss());
+            rvConversations.setVisibility(View.GONE);
             return;
         }
 
         adapter = new ConversationAdapter(currentUser.getUid(), this::openConversation);
         rvConversations.setLayoutManager(new LinearLayoutManager(requireContext()));
         rvConversations.setAdapter(adapter);
-        closeButton.setOnClickListener(v -> dismiss());
+        showLoadingState();
 
         listenForConversations(currentUser.getUid());
     }
@@ -93,8 +96,10 @@ public class ChatInboxBottomSheetFragment extends BottomSheetDialogFragment {
         buyerListener = db.collection("conversations")
                 .whereEqualTo("buyer_id", userId)
                 .addSnapshotListener((snapshots, error) -> {
+                    buyerLoaded = true;
                     if (error != null) {
                         showError(error.getMessage());
+                        renderConversations();
                         return;
                     }
                     if (snapshots != null) {
@@ -112,8 +117,10 @@ public class ChatInboxBottomSheetFragment extends BottomSheetDialogFragment {
         sellerListener = db.collection("conversations")
                 .whereEqualTo("seller_id", userId)
                 .addSnapshotListener((snapshots, error) -> {
+                    sellerLoaded = true;
                     if (error != null) {
                         showError(error.getMessage());
+                        renderConversations();
                         return;
                     }
                     if (snapshots != null) {
@@ -130,13 +137,27 @@ public class ChatInboxBottomSheetFragment extends BottomSheetDialogFragment {
     }
 
     private void renderConversations() {
+        if ((!buyerLoaded || !sellerLoaded) && conversationMap.isEmpty()) {
+            showLoadingState();
+            return;
+        }
+
         List<Conversation> conversations = new ArrayList<>(conversationMap.values());
         conversations.sort(Comparator.comparing(this::sortKey).reversed());
         adapter.submitList(conversations);
 
         boolean empty = conversations.isEmpty();
+        if (empty) {
+            tvEmptyState.setText("Chưa có nội dung\nHãy mở chi tiết sản phẩm và nhắn tin với người bán.");
+        }
         tvEmptyState.setVisibility(empty ? View.VISIBLE : View.GONE);
         rvConversations.setVisibility(empty ? View.GONE : View.VISIBLE);
+    }
+
+    private void showLoadingState() {
+        tvEmptyState.setText("Đang tải cuộc trò chuyện...");
+        tvEmptyState.setVisibility(View.VISIBLE);
+        rvConversations.setVisibility(View.GONE);
     }
 
     private void openConversation(Conversation conversation) {

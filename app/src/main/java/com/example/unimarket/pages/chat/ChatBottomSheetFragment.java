@@ -1,12 +1,12 @@
 package com.example.unimarket.pages.chat;
 
+import android.content.Context;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
-import android.content.Context;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -20,12 +20,16 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.unimarket.R;
 import com.example.unimarket.data.model.Conversation;
+import com.example.unimarket.data.model.Message;
 import com.example.unimarket.data.model.Product;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class ChatBottomSheetFragment extends BottomSheetDialogFragment {
     private static final String ARG_CONVERSATION_ID = "conversation_id";
@@ -44,6 +48,8 @@ public class ChatBottomSheetFragment extends BottomSheetDialogFragment {
     private TextView tvEmptyState;
     private TextView tvChatTitle;
     private TextView tvChatSubtitle;
+    private List<Message> latestMessages = new ArrayList<>();
+    private boolean isChatLoading = true;
 
     public static ChatBottomSheetFragment newConversation(Conversation conversation) {
         ChatBottomSheetFragment fragment = new ChatBottomSheetFragment();
@@ -127,6 +133,7 @@ public class ChatBottomSheetFragment extends BottomSheetDialogFragment {
         tvEmptyState = view.findViewById(R.id.tvChatEmptyState);
         tvChatTitle = view.findViewById(R.id.tvChatTitle);
         tvChatSubtitle = view.findViewById(R.id.tvChatSubtitle);
+        ImageView backButton = view.findViewById(R.id.ivBackToInbox);
         ImageView closeButton = view.findViewById(R.id.ivCloseChat);
         View sendButton = view.findViewById(R.id.btnSendChat);
 
@@ -135,6 +142,7 @@ public class ChatBottomSheetFragment extends BottomSheetDialogFragment {
         rvMessages.setLayoutManager(layoutManager);
         rvMessages.setAdapter(adapter);
 
+        backButton.setOnClickListener(v -> openInbox());
         closeButton.setOnClickListener(v -> dismiss());
         sendButton.setOnClickListener(v -> sendCurrentMessage(currentUserId));
         etMessage.setOnEditorActionListener((v, actionId, event) -> {
@@ -187,12 +195,13 @@ public class ChatBottomSheetFragment extends BottomSheetDialogFragment {
 
     private void observeViewModel() {
         viewModel.getMessages().observe(getViewLifecycleOwner(), messages -> {
-            adapter.submitList(messages);
-            boolean empty = messages == null || messages.isEmpty();
-            tvEmptyState.setVisibility(empty ? View.VISIBLE : View.GONE);
-            if (!empty) {
-                rvMessages.post(() -> rvMessages.scrollToPosition(adapter.getItemCount() - 1));
-            }
+            latestMessages = messages != null ? messages : new ArrayList<>();
+            renderMessages();
+        });
+
+        viewModel.getIsLoading().observe(getViewLifecycleOwner(), loading -> {
+            isChatLoading = Boolean.TRUE.equals(loading);
+            renderMessages();
         });
 
         viewModel.getErrorMessage().observe(getViewLifecycleOwner(), error -> {
@@ -200,6 +209,34 @@ public class ChatBottomSheetFragment extends BottomSheetDialogFragment {
                 Toast.makeText(requireContext(), error, Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    private void renderMessages() {
+        adapter.submitList(latestMessages);
+        boolean empty = latestMessages == null || latestMessages.isEmpty();
+
+        if (isChatLoading && empty) {
+            tvEmptyState.setText("Đang tải cuộc trò chuyện...");
+            tvEmptyState.setVisibility(View.VISIBLE);
+            rvMessages.setVisibility(View.GONE);
+            return;
+        }
+
+        if (empty) {
+            tvEmptyState.setText("Chưa có nội dung\nHãy gửi tin nhắn đầu tiên để bắt đầu trao đổi.");
+            tvEmptyState.setVisibility(View.VISIBLE);
+            rvMessages.setVisibility(View.GONE);
+            return;
+        }
+
+        tvEmptyState.setVisibility(View.GONE);
+        rvMessages.setVisibility(View.VISIBLE);
+        rvMessages.post(() -> rvMessages.scrollToPosition(adapter.getItemCount() - 1));
+    }
+
+    private void openInbox() {
+        dismiss();
+        new ChatInboxBottomSheetFragment().show(getParentFragmentManager(), "chat_inbox_from_conversation");
     }
 
     private void sendCurrentMessage(String currentUserId) {

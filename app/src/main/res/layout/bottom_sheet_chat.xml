@@ -8,10 +8,10 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="98dp"
+        android:layout_height="104dp"
         android:background="@drawable/bg_chat_header"
         android:orientation="vertical"
-        android:paddingStart="18dp"
+        android:paddingStart="14dp"
         android:paddingTop="10dp"
         android:paddingEnd="16dp"
         android:paddingBottom="14dp">
@@ -22,6 +22,17 @@
             android:layout_weight="1"
             android:gravity="center_vertical"
             android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/ivBackToInbox"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/bg_home_circle_white"
+                android:contentDescription="Quay lại danh sách trò chuyện"
+                android:padding="9dp"
+                android:src="@drawable/ic_arrow_back"
+                app:tint="#21409A" />
 
             <FrameLayout
                 android:layout_width="48dp"
@@ -46,8 +57,10 @@
 
                 <TextView
                     android:id="@+id/tvChatTitle"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
                     android:text="UniMarket Chat"
                     android:textColor="@android:color/white"
                     android:textSize="18sp"
@@ -55,11 +68,11 @@
 
                 <TextView
                     android:id="@+id/tvChatSubtitle"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="3dp"
-                    android:maxLines="1"
                     android:ellipsize="end"
+                    android:maxLines="1"
                     android:text="Trao đổi về sản phẩm"
                     android:textColor="#DCE8FF"
                     android:textSize="12sp" />
@@ -67,19 +80,20 @@
 
             <ImageView
                 android:id="@+id/ivCloseChat"
-                android:layout_width="34dp"
-                android:layout_height="34dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:background="@drawable/bg_home_circle_white"
                 android:contentDescription="Đóng chat"
-                android:padding="8dp"
+                android:padding="10dp"
                 android:src="@drawable/close"
                 app:tint="#6B7280" />
         </LinearLayout>
 
         <TextView
+            android:id="@+id/tvQuickReplyHint"
             android:layout_width="wrap_content"
             android:layout_height="24dp"
-            android:layout_marginStart="60dp"
+            android:layout_marginStart="104dp"
             android:background="@drawable/bg_item_product_meta"
             android:gravity="center"
             android:paddingStart="10dp"
@@ -110,7 +124,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:gravity="center"
-            android:padding="24dp"
+            android:padding="28dp"
             android:text="Đang tải cuộc trò chuyện..."
             android:textColor="#8E98A8"
             android:textSize="14sp" />
@@ -136,6 +150,8 @@
             android:imeOptions="actionSend"
             android:inputType="textCapSentences|textMultiLine"
             android:maxLines="3"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
             android:textColor="#101828"
             android:textColorHint="#98A1B2"
             android:textSize="14sp" />

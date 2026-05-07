@@ -44,6 +44,8 @@ public class ChatViewModel extends ViewModel {
 
     public void startListening(Conversation conversation) {
         if (conversation == null || TextUtils.isEmpty(conversation.getId())) {
+            isLoading.setValue(false);
+            messages.setValue(new ArrayList<>());
             errorMessage.setValue("Không thể mở hội thoại.");
             return;
         }
