@@ -7,6 +7,7 @@ import static org.junit.Assert.assertTrue;
 import com.example.unimarket.data.model.Cart;
 import com.example.unimarket.data.model.Category;
 import com.example.unimarket.data.model.Conversation;
+import com.example.unimarket.data.model.DiscountCode;
 import com.example.unimarket.data.model.Message;
 import com.example.unimarket.data.model.Notification;
 import com.example.unimarket.data.model.Order;
@@ -35,6 +36,7 @@ public class CrudServicesTest {
                 new Case(new ProductService(), Product.class),
                 new Case(new CartService(), Cart.class),
                 new Case(new ConversationService(), Conversation.class),
+                new Case(new DiscountCodeService(), DiscountCode.class),
                 new Case(new MessageService(), Message.class),
                 new Case(new NotificationService(), Notification.class),
                 new Case(new OrderService(), Order.class),

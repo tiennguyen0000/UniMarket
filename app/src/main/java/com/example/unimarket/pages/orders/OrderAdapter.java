@@ -4,6 +4,7 @@ import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -15,10 +16,8 @@ import com.example.unimarket.data.model.Order;
 import com.example.unimarket.pages.home.HomeUiUtils;
 import com.google.android.material.imageview.ShapeableImageView;
 
-import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHolder> {
 
@@ -56,40 +55,60 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
     public int getItemCount() { return items.size(); }
 
     class OrderViewHolder extends RecyclerView.ViewHolder {
-        private final TextView tvOrderId, tvOrderStatus, tvOrderProductTitle, tvOrderPrice;
+        private final TextView tvOrderId, tvOrderDate, tvOrderStatus, tvOrderProductTitle;
+        private final TextView tvOrderQuantity, tvOrderUnitPrice, tvOrderDiscount, tvOrderPrice, tvOrderCta;
+        private final LinearLayout layoutOrderDiscount;
         private final ShapeableImageView ivOrderProductImage;
 
         OrderViewHolder(@NonNull View itemView) {
             super(itemView);
             tvOrderId = itemView.findViewById(R.id.tvOrderId);
+            tvOrderDate = itemView.findViewById(R.id.tvOrderDate);
             tvOrderStatus = itemView.findViewById(R.id.tvOrderStatus);
             tvOrderProductTitle = itemView.findViewById(R.id.tvOrderProductTitle);
+            tvOrderQuantity = itemView.findViewById(R.id.tvOrderQuantity);
+            tvOrderUnitPrice = itemView.findViewById(R.id.tvOrderUnitPrice);
+            layoutOrderDiscount = itemView.findViewById(R.id.layoutOrderDiscount);
+            tvOrderDiscount = itemView.findViewById(R.id.tvOrderDiscount);
             tvOrderPrice = itemView.findViewById(R.id.tvOrderPrice);
+            tvOrderCta = itemView.findViewById(R.id.tvOrderCta);
             ivOrderProductImage = itemView.findViewById(R.id.ivOrderProductImage);
         }
 
         void bind(Order order) {
-            String shortId = order.getId() != null
-                    ? "#UM" + order.getId().substring(0, Math.min(5, order.getId().length())).toUpperCase()
-                    : "#UMXXXXX";
-            tvOrderId.setText("Đơn hàng " + shortId);
+            tvOrderId.setText("Đơn hàng " + OrderUiFormatter.shortOrderId(order.getId()));
+            tvOrderDate.setText(OrderUiFormatter.formatCreatedAt(order.getCreated_at()));
             tvOrderProductTitle.setText(!TextUtils.isEmpty(order.getProduct_title())
                     ? order.getProduct_title() : "Sản phẩm");
             tvOrderPrice.setText(HomeUiUtils.formatPrice(order.getTotal_price()));
+            tvOrderQuantity.setText("Số lượng: " + safeQuantity(order));
+            tvOrderUnitPrice.setText("Đơn giá: " + HomeUiUtils.formatPrice(order.getUnit_price()));
 
-            // Status chip
+            double discount = order.getDiscount_amount() != null ? order.getDiscount_amount() : 0;
+            if (discount > 0 || !TextUtils.isEmpty(order.getDiscount_code())) {
+                layoutOrderDiscount.setVisibility(View.VISIBLE);
+                String discountText = discount > 0 ? "-" + HomeUiUtils.formatPrice(discount) : "Đã áp dụng";
+                if (!TextUtils.isEmpty(order.getDiscount_code())) {
+                    discountText = order.getDiscount_code() + " · " + discountText;
+                }
+                tvOrderDiscount.setText(discountText);
+            } else {
+                layoutOrderDiscount.setVisibility(View.GONE);
+            }
+
             String status = order.getStatus() != null ? order.getStatus() : "pending";
-            tvOrderStatus.setText(statusLabel(status));
-            tvOrderStatus.setTextColor(statusTextColor(status));
+            tvOrderStatus.setText(OrderUiFormatter.statusLabel(status));
+            tvOrderStatus.setTextColor(OrderUiFormatter.statusTextColor(status));
             tvOrderStatus.setBackgroundTintList(
-                    android.content.res.ColorStateList.valueOf(statusBgColor(status)));
+                    android.content.res.ColorStateList.valueOf(OrderUiFormatter.statusBgColor(status)));
+            tvOrderCta.setText(OrderUiFormatter.ctaLabel(status));
 
-            // Product image
             if (!TextUtils.isEmpty(order.getProduct_image_url())) {
                 Glide.with(itemView.getContext())
                         .load(order.getProduct_image_url())
                         .centerCrop()
                         .placeholder(R.drawable.ic_user_placeholder)
+                        .error(R.drawable.ic_user_placeholder)
                         .into(ivOrderProductImage);
             } else {
                 ivOrderProductImage.setImageResource(R.drawable.ic_user_placeholder);
@@ -98,35 +117,13 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
             itemView.setOnClickListener(v -> {
                 if (listener != null) listener.onOrderClick(order);
             });
+            tvOrderCta.setOnClickListener(v -> {
+                if (listener != null) listener.onOrderClick(order);
+            });
         }
 
-        private String statusLabel(String status) {
-            switch (status.toLowerCase()) {
-                case "pending":    return "Chờ xác nhận";
-                case "confirmed":  return "Đã xác nhận";
-                case "shipping":   return "Đang giao";
-                case "done":       return "Hoàn thành";
-                case "cancelled":  return "Đã hủy";
-                default:           return status;
-            }
-        }
-
-        private int statusTextColor(String status) {
-            switch (status.toLowerCase()) {
-                case "done":       return 0xFF027A48;
-                case "shipping":   return 0xFF175CD3;
-                case "cancelled":  return 0xFFB42318;
-                default:           return 0xFF344054;
-            }
-        }
-
-        private int statusBgColor(String status) {
-            switch (status.toLowerCase()) {
-                case "done":       return 0xFFECFDF3;
-                case "shipping":   return 0xFFEFF8FF;
-                case "cancelled":  return 0xFFFEF3F2;
-                default:           return 0xFFF2F4F7;
-            }
+        private int safeQuantity(Order order) {
+            return order.getQuantity() != null ? Math.max(1, order.getQuantity()) : 1;
         }
     }
 }

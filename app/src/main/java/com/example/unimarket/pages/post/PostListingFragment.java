@@ -27,6 +27,7 @@ import androidx.navigation.fragment.NavHostFragment;
 
 import com.bumptech.glide.Glide;
 import com.example.unimarket.R;
+import com.example.unimarket.data.DomainConstants;
 import com.example.unimarket.data.model.Category;
 import com.example.unimarket.data.model.Product;
 import com.google.android.material.button.MaterialButton;
@@ -249,8 +250,10 @@ public class PostListingFragment extends Fragment {
             return;
         }
         product.setSeller_id(sellerId);
-        product.setStatus("active");
-        product.setCondition(rgCondition.getCheckedRadioButtonId() == R.id.rbNew ? "NEW" : "USED");
+        product.setStatus(DomainConstants.ProductStatus.ACTIVE);
+        product.setCondition(rgCondition.getCheckedRadioButtonId() == R.id.rbNew
+                ? DomainConstants.ProductCondition.NEW
+                : DomainConstants.ProductCondition.USED);
 
         viewModel.submitProduct(product);
     }

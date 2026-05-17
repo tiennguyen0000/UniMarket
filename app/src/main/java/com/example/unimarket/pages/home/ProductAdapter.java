@@ -22,6 +22,8 @@ import com.example.unimarket.data.model.Product;
 import com.example.unimarket.data.model.Wishlist;
 import com.example.unimarket.data.service.WishlistService;
 import com.example.unimarket.data.service.base.AsyncCrudService;
+import com.example.unimarket.data.util.FirestoreIds;
+import com.example.unimarket.data.util.TimeUtils;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 
@@ -29,7 +31,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -278,10 +279,10 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
 
         private void saveWishlist(String userId, String productId) {
             Wishlist wishlist = new Wishlist();
-            wishlist.setId(stableDocId("wishlist", userId, productId));
+            wishlist.setId(FirestoreIds.stableDocId("wishlist", userId, productId));
             wishlist.setUser_id(userId);
             wishlist.setProduct_id(productId);
-            wishlist.setCreated_at(nowIsoUtc());
+            wishlist.setCreated_at(TimeUtils.nowIsoUtc());
             wishlistService.save(wishlist, result -> {
                 tvFavorite.setEnabled(true);
                 if (result.isSuccess()) {
@@ -341,22 +342,5 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
             }
             return null;
         }
-    }
-
-    private String nowIsoUtc() {
-        java.text.SimpleDateFormat format = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
-        format.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
-        return format.format(new java.util.Date());
-    }
-
-    private String stableDocId(String... parts) {
-        StringBuilder builder = new StringBuilder();
-        for (String part : parts) {
-            if (builder.length() > 0) {
-                builder.append('_');
-            }
-            builder.append(part != null ? part : "item");
-        }
-        return builder.toString().replaceAll("[^A-Za-z0-9_-]", "_");
     }
 }

@@ -22,22 +22,20 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.example.unimarket.R;
-import com.example.unimarket.data.model.Cart;
-import com.example.unimarket.data.model.CartItem;
+import com.example.unimarket.data.DomainConstants;
 import com.example.unimarket.data.model.Order;
-import com.example.unimarket.data.model.OrderItem;
 import com.example.unimarket.data.model.Product;
 import com.example.unimarket.data.model.Review;
 import com.example.unimarket.data.model.User;
 import com.example.unimarket.data.model.Wishlist;
-import com.example.unimarket.data.service.CartItemService;
-import com.example.unimarket.data.service.CartService;
-import com.example.unimarket.data.service.OrderItemService;
-import com.example.unimarket.data.service.OrderService;
+import com.example.unimarket.data.service.CheckoutService;
+import com.example.unimarket.data.service.DiscountCodeService;
 import com.example.unimarket.data.service.ReviewService;
 import com.example.unimarket.data.service.UserService;
 import com.example.unimarket.data.service.WishlistService;
 import com.example.unimarket.data.service.base.AsyncCrudService;
+import com.example.unimarket.data.util.FirestoreIds;
+import com.example.unimarket.data.util.TimeUtils;
 import com.example.unimarket.pages.chat.ChatBottomSheetFragment;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
@@ -45,12 +43,9 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Locale;
-import java.util.TimeZone;
 
 public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment {
     private static final String ARG_PRODUCT = "product";
@@ -77,7 +72,7 @@ public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment 
 
     private int quantity = 1;
     private boolean discountApplied = false;
-    private String appliedDiscountCode;
+    private String appliedDiscountCodeId;
     private double discountAmount = 0;
     private boolean favoriteSaved = false;
     private Wishlist currentWishlist;
@@ -89,10 +84,8 @@ public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment 
 
     private final UserService userService = new UserService();
     private final ReviewService reviewService = new ReviewService();
-    private final OrderService orderService = new OrderService();
-    private final OrderItemService orderItemService = new OrderItemService();
-    private final CartService cartService = new CartService();
-    private final CartItemService cartItemService = new CartItemService();
+    private final DiscountCodeService discountCodeService = new DiscountCodeService();
+    private final CheckoutService checkoutService = new CheckoutService();
     private final WishlistService wishlistService = new WishlistService();
 
     public static ProductDetailBottomSheetFragment newInstance(Product product, String imageUrl, String categoryName) {
@@ -412,8 +405,26 @@ public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment 
             return;
         }
 
+        setReviewSubmitting(true);
+        reviewService.canReviewProduct(user.getUid(), product.getId(), eligibility -> {
+            if (!isAdded()) return;
+            if (!eligibility.isSuccess()) {
+                setReviewSubmitting(false);
+                showReviewStatus("Không thể kiểm tra điều kiện đánh giá: " + eligibility.getError(), true);
+                return;
+            }
+            if (!Boolean.TRUE.equals(eligibility.getData())) {
+                setReviewSubmitting(false);
+                showReviewStatus("Bạn chỉ có thể đánh giá sau khi đơn hàng đã hoàn thành.", true);
+                return;
+            }
+            persistReview(user, content);
+        });
+    }
+
+    private void persistReview(FirebaseUser user, String content) {
         Review review = new Review();
-        review.setId(stableDocId("review", product.getId(), user.getUid()));
+        review.setId(FirestoreIds.stableDocId("review", product.getId(), user.getUid()));
         review.setProduct_id(product.getId());
         review.setSeller_id(product.getSeller_id());
         review.setReviewer_id(user.getUid());
@@ -425,7 +436,6 @@ public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment 
         review.setCreated_at_timestamp(System.currentTimeMillis());
         review.setHelpful_count(0);
 
-        setReviewSubmitting(true);
         reviewService.save(review, result -> {
             if (!isAdded()) return;
             setReviewSubmitting(false);
@@ -528,27 +538,26 @@ public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment 
             return;
         }
 
-        double subtotal = subtotal();
-        double requestedDiscount;
-        switch (code) {
-            case "STUDENT50":
-                requestedDiscount = 50_000d;
-                break;
-            case "WELCOME100":
-                requestedDiscount = 100_000d;
-                break;
-            default:
-                showDiscountStatus("Mã không hợp lệ hoặc đã hết hạn.", true);
+        btnApplyCode.setEnabled(false);
+        btnApplyCode.setText("Đang kiểm tra...");
+        discountCodeService.validateCode(code, subtotal(), result -> {
+            if (!isAdded()) return;
+            btnApplyCode.setEnabled(true);
+            if (!result.isSuccess() || result.getData() == null) {
+                btnApplyCode.setText("Áp dụng");
+                showDiscountStatus(result.getError(), true);
                 return;
-        }
+            }
 
-        discountAmount = Math.min(requestedDiscount, subtotal);
-        discountApplied = true;
-        appliedDiscountCode = code;
-        etDiscountCode.setEnabled(false);
-        btnApplyCode.setText("Đã áp dụng");
-        showDiscountStatus("Đã giảm " + HomeUiUtils.formatPrice(discountAmount) + " cho đơn này.", false);
-        updateTotalPrice();
+            DiscountCodeService.Validation validation = result.getData();
+            discountAmount = validation.getAmount();
+            discountApplied = true;
+            appliedDiscountCodeId = validation.getDiscountCode().getId();
+            etDiscountCode.setEnabled(false);
+            btnApplyCode.setText("Đã áp dụng");
+            showDiscountStatus("Đã giảm " + HomeUiUtils.formatPrice(discountAmount) + " cho đơn này.", false);
+            updateTotalPrice();
+        });
     }
 
     private void showDiscountStatus(String message, boolean error) {
@@ -604,10 +613,10 @@ public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment 
         }
 
         Wishlist wishlist = new Wishlist();
-        wishlist.setId(stableDocId("wishlist", user.getUid(), product.getId()));
+        wishlist.setId(FirestoreIds.stableDocId("wishlist", user.getUid(), product.getId()));
         wishlist.setUser_id(user.getUid());
         wishlist.setProduct_id(product.getId());
-        wishlist.setCreated_at(nowIsoUtc());
+        wishlist.setCreated_at(TimeUtils.nowIsoUtc());
         wishlistService.save(wishlist, result -> {
             if (!isAdded()) return;
             setFavoriteLoading(false);
@@ -632,99 +641,17 @@ public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment 
         }
 
         setActionLoading(btnAddToCart, tvAddToCartLabel, true, "Đang thêm...");
-        getOrCreateCart(user.getUid(), new CartCallback() {
-            @Override
-            public void onSuccess(Cart cart) {
-                saveCartItem(cart, quantity);
-            }
-
-            @Override
-            public void onError(String error) {
-                if (!isAdded()) return;
-                setActionLoading(btnAddToCart, tvAddToCartLabel, false, "Thêm vào giỏ");
-                Toast.makeText(requireContext(), "Không thể tạo giỏ hàng: " + error, Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    private void getOrCreateCart(String userId, CartCallback callback) {
-        cartService.getWithFilter("user_id", userId, new AsyncCrudService.ListCallback<Cart>() {
-            @Override
-            public void onSuccess(List<Cart> data) {
-                if (data != null && !data.isEmpty()) {
-                    callback.onSuccess(data.get(0));
-                    return;
-                }
-
-                Cart cart = new Cart();
-                cart.setId(stableDocId("cart", userId));
-                cart.setUser_id(userId);
-                cart.setCreated_at(nowIsoUtc());
-                cartService.save(cart, result -> {
-                    if (result.isSuccess() && result.getData() != null) {
-                        callback.onSuccess(result.getData());
-                    } else {
-                        callback.onError(result.getError());
-                    }
-                });
-            }
-
-            @Override
-            public void onError(String error) {
-                callback.onError(error);
-            }
-        });
-    }
-
-    private void saveCartItem(Cart cart, int addedQuantity) {
-        if (cart == null || TextUtils.isEmpty(cart.getId()) || product == null) {
+        checkoutService.addToCart(new CheckoutService.AddToCartRequest(
+                user.getUid(),
+                product.getId(),
+                quantity
+        ), result -> {
+            if (!isAdded()) return;
             setActionLoading(btnAddToCart, tvAddToCartLabel, false, "Thêm vào giỏ");
-            Toast.makeText(requireContext(), "Không thể thêm sản phẩm vào giỏ", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        cartItemService.getCartItemsByCartId(cart.getId(), new AsyncCrudService.ListCallback<CartItem>() {
-            @Override
-            public void onSuccess(List<CartItem> data) {
-                CartItem item = findCartItemForProduct(data);
-                int existingQuantity = item != null && item.getQuantity() != null ? item.getQuantity() : 0;
-                if (item == null) {
-                    item = new CartItem();
-                    item.setId(stableDocId("cart_item", cart.getId(), product.getId()));
-                    item.setCart_id(cart.getId());
-                    item.setProduct_id(product.getId());
-                }
-                item.setQuantity(existingQuantity + addedQuantity);
-                cartItemService.save(item, result -> {
-                    if (!isAdded()) return;
-                    setActionLoading(btnAddToCart, tvAddToCartLabel, false, "Thêm vào giỏ");
-                    if (result.isSuccess()) {
-                        Toast.makeText(requireContext(), "Đã thêm vào giỏ hàng", Toast.LENGTH_SHORT).show();
-                    } else {
-                        Toast.makeText(requireContext(), "Thêm giỏ hàng thất bại: " + result.getError(), Toast.LENGTH_SHORT).show();
-                    }
-                });
-            }
-
-            @Override
-            public void onError(String error) {
-                if (!isAdded()) return;
-                setActionLoading(btnAddToCart, tvAddToCartLabel, false, "Thêm vào giỏ");
-                Toast.makeText(requireContext(), "Không thể đọc giỏ hàng: " + error, Toast.LENGTH_SHORT).show();
-            }
+            Toast.makeText(requireContext(),
+                    result.isSuccess() ? "Đã thêm vào giỏ hàng" : "Thêm giỏ hàng thất bại: " + result.getError(),
+                    Toast.LENGTH_SHORT).show();
         });
-    }
-
-    private CartItem findCartItemForProduct(List<CartItem> data) {
-        if (data == null || product == null) {
-            return null;
-        }
-        for (CartItem item : data) {
-            if (item != null && product.getId().equals(item.getProduct_id())) {
-                return item;
-            }
-        }
-        return null;
     }
 
     private void buyNow() {
@@ -737,57 +664,22 @@ public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment 
             return;
         }
 
-        Order order = buildOrder(user.getUid());
         setActionLoading(btnBuyNow, tvBuyNowLabel, true, "Đang đặt...");
-        orderService.save(order, result -> {
+        checkoutService.createOrder(new CheckoutService.CheckoutRequest(
+                user.getUid(),
+                product.getId(),
+                !TextUtils.isEmpty(imageUrl) ? imageUrl : firstProductImage(),
+                quantity,
+                appliedDiscountCodeId
+        ), result -> {
             if (!isAdded()) return;
             if (!result.isSuccess() || result.getData() == null) {
                 setActionLoading(btnBuyNow, tvBuyNowLabel, false, "Mua ngay");
                 Toast.makeText(requireContext(), "Đặt hàng thất bại: " + result.getError(), Toast.LENGTH_SHORT).show();
                 return;
             }
-
-            Order savedOrder = result.getData();
-            saveOrderItem(savedOrder);
-        });
-    }
-
-    private Order buildOrder(String buyerId) {
-        double unitPrice = product.getPrice() != null ? product.getPrice() : 0;
-        Order order = new Order();
-        order.setBuyer_id(buyerId);
-        order.setSeller_id(product.getSeller_id());
-        order.setProduct_id(product.getId());
-        order.setProduct_title(product.getTitle());
-        order.setProduct_image_url(!TextUtils.isEmpty(imageUrl) ? imageUrl : firstProductImage());
-        order.setQuantity(quantity);
-        order.setUnit_price(unitPrice);
-        order.setDiscount_code(appliedDiscountCode);
-        order.setDiscount_amount(discountAmount);
-        order.setTotal_price(totalPrice());
-        order.setStatus("pending");
-        String now = nowIsoUtc();
-        order.setCreated_at(now);
-        order.setUpdated_at(now);
-        return order;
-    }
-
-    private void saveOrderItem(Order order) {
-        OrderItem item = new OrderItem();
-        item.setId(stableDocId("order_item", order.getId(), product.getId()));
-        item.setOrder_id(order.getId());
-        item.setProduct_id(product.getId());
-        item.setSeller_id(product.getSeller_id());
-        item.setPrice(product.getPrice() != null ? product.getPrice() : 0);
-        item.setQuantity(quantity);
-
-        orderItemService.save(item, result -> {
-            if (!isAdded()) return;
             setActionLoading(btnBuyNow, tvBuyNowLabel, false, "Mua ngay");
-            if (!result.isSuccess()) {
-                Toast.makeText(requireContext(), "Đơn đã tạo, nhưng chi tiết đơn chưa đồng bộ: " + result.getError(), Toast.LENGTH_LONG).show();
-            }
-            showOrderSuccessDialog(order);
+            showOrderSuccessDialog(result.getData());
         });
     }
 
@@ -882,7 +774,7 @@ public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment 
             return true;
         }
         String status = product.getStatus().trim().toLowerCase(Locale.ROOT);
-        return status.equals("active") || status.equals("available") || status.equals("pending") || status.equals("còn hàng");
+        return status.equals(DomainConstants.ProductStatus.ACTIVE) || status.equals("available") || status.equals("còn hàng");
     }
 
     private void updateOwnProductState() {
@@ -955,29 +847,7 @@ public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment 
         return null;
     }
 
-    private String nowIsoUtc() {
-        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
-        format.setTimeZone(TimeZone.getTimeZone("UTC"));
-        return format.format(new Date());
-    }
-
-    private String stableDocId(String... parts) {
-        StringBuilder builder = new StringBuilder();
-        for (String part : parts) {
-            if (builder.length() > 0) {
-                builder.append('_');
-            }
-            builder.append(part != null ? part : "item");
-        }
-        return builder.toString().replaceAll("[^A-Za-z0-9_-]", "_");
-    }
-
     private int dpToPx(int dp) {
         return Math.round(dp * getResources().getDisplayMetrics().density);
-    }
-
-    private interface CartCallback {
-        void onSuccess(Cart cart);
-        void onError(String error);
     }
 }
