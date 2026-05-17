@@ -8,6 +8,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -18,10 +19,10 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.unimarket.R;
+import com.example.unimarket.data.DomainConstants;
 import com.example.unimarket.data.model.Order;
 import com.example.unimarket.pages.home.HomeUiUtils;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.google.android.material.tabs.TabLayout;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 
@@ -33,13 +34,14 @@ public class OrdersFragment extends Fragment {
     private RecyclerView rvOrders;
     private LinearLayout layoutEmpty;
     private View layoutOrdersLoading;
-    private TabLayout tabOrderStatus;
+    private TextView chipAll, chipPending, chipShipping, chipDone, chipCancelled;
+    private TextView tvPendingCount, tvShippingCount, tvDoneCount, tvCancelledCount;
+    private TextView tvOrdersEmptyTitle, tvOrdersEmptyMessage;
     private boolean ordersLoading = false;
+    private String selectedFilter = OrderUiFormatter.FILTER_ALL;
 
     private OrdersViewModel viewModel;
     private OrderAdapter adapter;
-
-    private static final String[] STATUS_FILTERS = { null, "pending", "shipping", "done" };
 
     @Nullable
     @Override
@@ -56,7 +58,17 @@ public class OrdersFragment extends Fragment {
         rvOrders = view.findViewById(R.id.rvOrders);
         layoutEmpty = view.findViewById(R.id.layoutEmpty);
         layoutOrdersLoading = view.findViewById(R.id.layoutOrdersLoading);
-        tabOrderStatus = view.findViewById(R.id.tabOrderStatus);
+        chipAll = view.findViewById(R.id.chipAll);
+        chipPending = view.findViewById(R.id.chipPending);
+        chipShipping = view.findViewById(R.id.chipShipping);
+        chipDone = view.findViewById(R.id.chipDone);
+        chipCancelled = view.findViewById(R.id.chipCancelled);
+        tvPendingCount = view.findViewById(R.id.tvPendingCount);
+        tvShippingCount = view.findViewById(R.id.tvShippingCount);
+        tvDoneCount = view.findViewById(R.id.tvDoneCount);
+        tvCancelledCount = view.findViewById(R.id.tvCancelledCount);
+        tvOrdersEmptyTitle = view.findViewById(R.id.tvOrdersEmptyTitle);
+        tvOrdersEmptyMessage = view.findViewById(R.id.tvOrdersEmptyMessage);
 
         viewModel = new ViewModelProvider(this).get(OrdersViewModel.class);
 
@@ -66,18 +78,10 @@ public class OrdersFragment extends Fragment {
         rvOrders.setNestedScrollingEnabled(false);
 
         observeViewModel();
+        setupFilterChips();
 
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user != null) viewModel.loadOrders(user.getUid());
-
-        tabOrderStatus.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
-            @Override
-            public void onTabSelected(TabLayout.Tab tab) {
-                filterAndDisplay(tab.getPosition());
-            }
-            @Override public void onTabUnselected(TabLayout.Tab tab) {}
-            @Override public void onTabReselected(TabLayout.Tab tab) {}
-        });
     }
 
     private void setupLightSystemBars() {
@@ -93,11 +97,11 @@ public class OrdersFragment extends Fragment {
 
     private void observeViewModel() {
         viewModel.getAllOrders().observe(getViewLifecycleOwner(), orders ->
-                filterAndDisplay(tabOrderStatus.getSelectedTabPosition()));
+                renderOrders());
 
         viewModel.getIsLoading().observe(getViewLifecycleOwner(), loading -> {
             ordersLoading = Boolean.TRUE.equals(loading);
-            filterAndDisplay(tabOrderStatus.getSelectedTabPosition());
+            renderOrders();
         });
 
         viewModel.getErrorMessage().observe(getViewLifecycleOwner(), error -> {
@@ -107,10 +111,25 @@ public class OrdersFragment extends Fragment {
         });
     }
 
-    private void filterAndDisplay(int tabPosition) {
-        String statusFilter = (tabPosition >= 0 && tabPosition < STATUS_FILTERS.length)
-                ? STATUS_FILTERS[tabPosition] : null;
-        List<Order> filtered = viewModel.filterByStatus(statusFilter);
+    private void setupFilterChips() {
+        chipAll.setOnClickListener(v -> selectFilter(OrderUiFormatter.FILTER_ALL));
+        chipPending.setOnClickListener(v -> selectFilter(OrderUiFormatter.FILTER_PROCESSING));
+        chipShipping.setOnClickListener(v -> selectFilter(OrderUiFormatter.FILTER_SHIPPING));
+        chipDone.setOnClickListener(v -> selectFilter(OrderUiFormatter.FILTER_DONE));
+        chipCancelled.setOnClickListener(v -> selectFilter(OrderUiFormatter.FILTER_CANCELLED));
+        updateFilterChips();
+    }
+
+    private void selectFilter(String filter) {
+        selectedFilter = filter;
+        renderOrders();
+    }
+
+    private void renderOrders() {
+        updateSummaryCounts();
+        updateFilterChips();
+
+        List<Order> filtered = viewModel.filterByStatus(selectedFilter);
         adapter.submitList(filtered);
 
         if (ordersLoading) {
@@ -124,6 +143,65 @@ public class OrdersFragment extends Fragment {
         boolean empty = filtered.isEmpty();
         rvOrders.setVisibility(empty ? View.GONE : View.VISIBLE);
         layoutEmpty.setVisibility(empty ? View.VISIBLE : View.GONE);
+        bindEmptyState(empty);
+    }
+
+    private void updateSummaryCounts() {
+        int all = viewModel.countByFilter(OrderUiFormatter.FILTER_ALL);
+        int processing = viewModel.countByFilter(OrderUiFormatter.FILTER_PROCESSING);
+        int shipping = viewModel.countByFilter(OrderUiFormatter.FILTER_SHIPPING);
+        int done = viewModel.countByFilter(OrderUiFormatter.FILTER_DONE);
+        int cancelled = viewModel.countByFilter(OrderUiFormatter.FILTER_CANCELLED);
+
+        chipAll.setText("Tất cả " + all);
+        chipPending.setText("Đang xử lý " + processing);
+        chipShipping.setText("Đang giao " + shipping);
+        chipDone.setText("Hoàn thành " + done);
+        chipCancelled.setText("Đã hủy " + cancelled);
+
+        tvPendingCount.setText(String.valueOf(processing));
+        tvShippingCount.setText(String.valueOf(shipping));
+        tvDoneCount.setText(String.valueOf(done));
+        tvCancelledCount.setText(String.valueOf(cancelled));
+    }
+
+    private void updateFilterChips() {
+        bindChip(chipAll, OrderUiFormatter.FILTER_ALL);
+        bindChip(chipPending, OrderUiFormatter.FILTER_PROCESSING);
+        bindChip(chipShipping, OrderUiFormatter.FILTER_SHIPPING);
+        bindChip(chipDone, OrderUiFormatter.FILTER_DONE);
+        bindChip(chipCancelled, OrderUiFormatter.FILTER_CANCELLED);
+    }
+
+    private void bindChip(TextView chip, String filter) {
+        boolean selected = filter.equals(selectedFilter);
+        chip.setBackgroundResource(selected
+                ? R.drawable.bg_order_filter_chip_selected
+                : R.drawable.bg_order_filter_chip);
+        chip.setTextColor(selected ? 0xFFFFFFFF : 0xFF667085);
+    }
+
+    private void bindEmptyState(boolean empty) {
+        if (!empty || tvOrdersEmptyTitle == null || tvOrdersEmptyMessage == null) {
+            return;
+        }
+
+        if (OrderUiFormatter.FILTER_ALL.equals(selectedFilter)) {
+            tvOrdersEmptyTitle.setText("Chưa có đơn hàng nào");
+            tvOrdersEmptyMessage.setText("Hãy khám phá và đặt mua sản phẩm đầu tiên của bạn!");
+        } else if (OrderUiFormatter.FILTER_PROCESSING.equals(selectedFilter)) {
+            tvOrdersEmptyTitle.setText("Không có đơn đang xử lý");
+            tvOrdersEmptyMessage.setText("Các đơn chờ xác nhận hoặc đã xác nhận sẽ xuất hiện tại đây.");
+        } else if (OrderUiFormatter.FILTER_SHIPPING.equals(selectedFilter)) {
+            tvOrdersEmptyTitle.setText("Không có đơn đang giao");
+            tvOrdersEmptyMessage.setText("Khi người bán bắt đầu giao hàng, đơn sẽ được chuyển vào mục này.");
+        } else if (OrderUiFormatter.FILTER_DONE.equals(selectedFilter)) {
+            tvOrdersEmptyTitle.setText("Chưa có đơn hoàn thành");
+            tvOrdersEmptyMessage.setText("Các giao dịch đã hoàn tất sẽ được lưu lại để bạn xem và đánh giá.");
+        } else {
+            tvOrdersEmptyTitle.setText("Không có đơn đã hủy");
+            tvOrdersEmptyMessage.setText("Những đơn đã hủy sẽ xuất hiện tại đây để bạn dễ kiểm tra lại.");
+        }
     }
 
     private void showOrderDetailDialog(Order order) {
@@ -142,7 +220,9 @@ public class OrdersFragment extends Fragment {
         message.append("Sản phẩm: ")
                 .append(!TextUtils.isEmpty(order.getProduct_title()) ? order.getProduct_title() : "Sản phẩm")
                 .append("\n");
-        message.append("Trạng thái: ").append(statusLabel(order.getStatus())).append("\n");
+        message.append("Mã đơn: ").append(OrderUiFormatter.shortOrderId(order.getId())).append("\n");
+        message.append("Ngày tạo: ").append(OrderUiFormatter.formatCreatedAt(order.getCreated_at())).append("\n");
+        message.append("Trạng thái: ").append(OrderUiFormatter.statusLabel(order.getStatus())).append("\n");
         message.append("Số lượng: ").append(quantity).append("\n");
         if (unitPrice > 0) {
             message.append("Đơn giá: ").append(HomeUiUtils.formatPrice(unitPrice)).append("\n");
@@ -155,24 +235,27 @@ public class OrdersFragment extends Fragment {
         }
         message.append("Tổng thanh toán: ").append(HomeUiUtils.formatPrice(order.getTotal_price()));
 
-        new MaterialAlertDialogBuilder(requireContext())
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(requireContext())
                 .setTitle("Chi tiết đơn " + orderId)
                 .setMessage(message.toString())
-                .setPositiveButton("Đóng", null)
-                .show();
+                .setNegativeButton("Đóng", null);
+
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        String nextStatus = currentUser != null
+                ? viewModel.nextActionForUser(order, currentUser.getUid())
+                : null;
+        if (!TextUtils.isEmpty(nextStatus)) {
+            builder.setPositiveButton(actionLabel(nextStatus), (dialog, which) ->
+                    viewModel.updateOrderStatus(order.getId(), currentUser.getUid(), nextStatus));
+        }
+        builder.show();
     }
 
-    private String statusLabel(String status) {
-        if (TextUtils.isEmpty(status)) {
-            return "Chờ xác nhận";
-        }
-        switch (status.toLowerCase(Locale.ROOT)) {
-            case "pending": return "Chờ xác nhận";
-            case "confirmed": return "Đã xác nhận";
-            case "shipping": return "Đang giao";
-            case "done": return "Hoàn thành";
-            case "cancelled": return "Đã hủy";
-            default: return status;
-        }
+    private String actionLabel(String nextStatus) {
+        if (DomainConstants.OrderStatus.CONFIRMED.equals(nextStatus)) return "Xác nhận";
+        if (DomainConstants.OrderStatus.SHIPPING.equals(nextStatus)) return "Bắt đầu giao";
+        if (DomainConstants.OrderStatus.DONE.equals(nextStatus)) return "Hoàn thành";
+        if (DomainConstants.OrderStatus.CANCELLED.equals(nextStatus)) return "Hủy đơn";
+        return "Cập nhật";
     }
 }

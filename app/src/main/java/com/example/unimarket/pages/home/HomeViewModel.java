@@ -7,6 +7,7 @@ import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
+import com.example.unimarket.data.DomainConstants;
 import com.example.unimarket.data.model.Category;
 import com.example.unimarket.data.model.Product;
 import com.example.unimarket.data.model.ProductImage;
@@ -68,29 +69,38 @@ public class HomeViewModel extends ViewModel {
     }
 
     private void loadProducts(Integer productLimit) {
-        productService.fetchAll(result -> {
-            List<Product> data = result.isSuccess() ? result.getData() : null;
-            if (data == null || data.isEmpty()) {
-                updateState(null, null, buildFallbackProducts(), buildFallbackProductImages(), null);
+        productService.getActiveProducts(new com.example.unimarket.data.service.base.AsyncCrudService.ListCallback<Product>() {
+            @Override
+            public void onSuccess(List<Product> data) {
+                if (data == null || data.isEmpty()) {
+                    updateState(null, null, new ArrayList<>(), new HashMap<>(), null);
+                    finishRequest();
+                    return;
+                }
+
+                List<Product> sortedProducts = new ArrayList<>(data);
+                sortedProducts.sort(Comparator.comparing(HomeViewModel.this::buildSortKey).reversed());
+
+                int maxItems = productLimit != null
+                        ? Math.min(sortedProducts.size(), Math.max(productLimit, 0))
+                        : sortedProducts.size();
+                List<Product> topProducts = new ArrayList<>();
+                for (int i = 0; i < maxItems; i++) {
+                    topProducts.add(sortedProducts.get(i));
+                }
+
+                Map<String, String> extractedImages = extractImagesFromProducts(topProducts);
+                updateState(null, null, topProducts, extractedImages, null);
+                loadSellerAvatars(topProducts);
                 finishRequest();
-                return;
             }
 
-            List<Product> sortedProducts = new ArrayList<>(data);
-            sortedProducts.sort(Comparator.comparing(this::buildSortKey).reversed());
-
-            int maxItems = productLimit != null
-                    ? Math.min(sortedProducts.size(), Math.max(productLimit, 0))
-                    : sortedProducts.size();
-            List<Product> topProducts = new ArrayList<>();
-            for (int i = 0; i < maxItems; i++) {
-                topProducts.add(sortedProducts.get(i));
+            @Override
+            public void onError(String error) {
+                Log.d(TAG, error != null ? error : "Failed to load products");
+                updateState(null, null, new ArrayList<>(), new HashMap<>(), null);
+                finishRequest();
             }
-
-            Map<String, String> extractedImages = extractImagesFromProducts(topProducts);
-            updateState(null, null, topProducts, extractedImages, null);
-            loadSellerAvatars(topProducts);
-            finishRequest();
         });
     }
 
@@ -247,7 +257,7 @@ public class HomeViewModel extends ViewModel {
         p.setTitle(title);
         p.setPrice(price);
         p.setCondition(condition);
-        p.setStatus("active");
+        p.setStatus(DomainConstants.ProductStatus.ACTIVE);
         return p;
     }
 }

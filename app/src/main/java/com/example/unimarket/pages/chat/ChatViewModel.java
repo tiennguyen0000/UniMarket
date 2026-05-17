@@ -8,22 +8,22 @@ import androidx.lifecycle.ViewModel;
 
 import com.example.unimarket.data.model.Conversation;
 import com.example.unimarket.data.model.Message;
+import com.example.unimarket.data.DomainConstants;
+import com.example.unimarket.data.service.NotificationService;
+import com.example.unimarket.data.util.TimeUtils;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.SetOptions;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.TimeZone;
 
 public class ChatViewModel extends ViewModel {
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
+    private final NotificationService notificationService = new NotificationService();
     private final MutableLiveData<List<Message>> messages = new MutableLiveData<>(new ArrayList<>());
     private final MutableLiveData<Boolean> isLoading = new MutableLiveData<>(false);
     private final MutableLiveData<String> errorMessage = new MutableLiveData<>();
@@ -87,7 +87,7 @@ public class ChatViewModel extends ViewModel {
         String trimmed = content != null ? content.trim() : "";
         if (TextUtils.isEmpty(conversationId) || trimmed.isEmpty()) return;
 
-        String now = nowIsoUtc();
+        String now = TimeUtils.nowIsoUtc();
         String safeSenderId = !TextUtils.isEmpty(senderId) ? senderId : "guest_user";
         Message message = new Message(null, conversationId, safeSenderId, trimmed, now);
 
@@ -98,7 +98,7 @@ public class ChatViewModel extends ViewModel {
     }
 
     private void ensureConversation(Conversation data) {
-        String now = nowIsoUtc();
+        String now = TimeUtils.nowIsoUtc();
         if (TextUtils.isEmpty(data.getCreated_at())) {
             data.setCreated_at(now);
         }
@@ -117,7 +117,31 @@ public class ChatViewModel extends ViewModel {
         updates.put("last_message_at", timestamp);
         db.collection("conversations")
                 .document(conversationId)
-                .set(updates, SetOptions.merge());
+                .set(updates, SetOptions.merge())
+                .addOnSuccessListener(v -> notifyRecipient(lastMessage, senderId));
+    }
+
+    private void notifyRecipient(String lastMessage, String senderId) {
+        if (conversation == null || TextUtils.isEmpty(senderId)) {
+            return;
+        }
+        String recipientId = senderId.equals(conversation.getBuyer_id())
+                ? conversation.getSeller_id()
+                : conversation.getBuyer_id();
+        if (TextUtils.isEmpty(recipientId) || recipientId.equals(senderId)) {
+            return;
+        }
+        String productTitle = !TextUtils.isEmpty(conversation.getProduct_title())
+                ? conversation.getProduct_title()
+                : "sản phẩm";
+        notificationService.createNotification(
+                recipientId,
+                "Tin nhắn mới",
+                "Có phản hồi mới về " + productTitle + ": " + lastMessage,
+                DomainConstants.NotificationType.CHAT,
+                conversationId,
+                result -> {
+                });
     }
 
     private void stopListening() {
@@ -134,12 +158,6 @@ public class ChatViewModel extends ViewModel {
     private static String safeDocumentPart(String value) {
         if (TextUtils.isEmpty(value)) return "unknown";
         return value.replaceAll("[^A-Za-z0-9_-]", "_");
-    }
-
-    private String nowIsoUtc() {
-        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
-        format.setTimeZone(TimeZone.getTimeZone("UTC"));
-        return format.format(new Date());
     }
 
     @Override

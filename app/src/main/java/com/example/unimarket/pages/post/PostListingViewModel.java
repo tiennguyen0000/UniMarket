@@ -10,16 +10,13 @@ import com.example.unimarket.data.model.Category;
 import com.example.unimarket.data.model.Product;
 import com.example.unimarket.data.service.CategoryService;
 import com.example.unimarket.data.service.ProductService;
+import com.example.unimarket.data.util.TimeUtils;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
-import java.util.Locale;
-import java.util.TimeZone;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -115,7 +112,7 @@ public class PostListingViewModel extends ViewModel {
     }
 
     private void saveProductToFirestore(Product product) {
-        String now = nowIsoUtc();
+        String now = TimeUtils.nowIsoUtc();
         if (product.getCreated_at() == null || product.getCreated_at().trim().isEmpty()) {
             product.setCreated_at(now);
         }
@@ -144,11 +141,5 @@ public class PostListingViewModel extends ViewModel {
         fb.add(new Category("cat_transport", "Phương tiện di chuyển", null));
         fb.add(new Category("cat_free", "Góc 0 đồng / Cho tặng", null));
         return fb;
-    }
-
-    private String nowIsoUtc() {
-        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
-        format.setTimeZone(TimeZone.getTimeZone("UTC"));
-        return format.format(new Date());
     }
 }

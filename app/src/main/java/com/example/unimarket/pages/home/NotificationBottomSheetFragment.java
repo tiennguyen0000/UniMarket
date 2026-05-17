@@ -249,7 +249,7 @@ public class NotificationBottomSheetFragment extends BottomSheetDialogFragment {
     }
 
     private void addProductHintAndSave(List<Notification> starter) {
-        productService.getAll(new AsyncCrudService.ListCallback<Product>() {
+        productService.getActiveProducts(new AsyncCrudService.ListCallback<Product>() {
             @Override
             public void onSuccess(List<Product> products) {
                 Product product = firstAvailableProduct(products);
