@@ -1,10 +1,12 @@
 package com.example.unimarket.pages.home;
 
+import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
@@ -12,16 +14,15 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.example.unimarket.R;
 import com.example.unimarket.data.model.Review;
+import com.example.unimarket.data.service.ReviewService;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
-import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 public class ReviewAdapter extends RecyclerView.Adapter<ReviewAdapter.ReviewViewHolder> {
     private final List<Review> items = new ArrayList<>();
+    private final ReviewService reviewService = new ReviewService();
 
     public void submitList(List<Review> newItems) {
         items.clear();
@@ -40,8 +41,7 @@ public class ReviewAdapter extends RecyclerView.Adapter<ReviewAdapter.ReviewView
 
     @Override
     public void onBindViewHolder(@NonNull ReviewViewHolder holder, int position) {
-        Review review = items.get(position);
-        holder.bind(review);
+        holder.bind(items.get(position));
     }
 
     @Override
@@ -58,6 +58,7 @@ public class ReviewAdapter extends RecyclerView.Adapter<ReviewAdapter.ReviewView
         private final TextView tvContent;
         private final TextView tvHelpful;
         private final TextView tvReply;
+        private final View dividerReply;
 
         ReviewViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -69,56 +70,63 @@ public class ReviewAdapter extends RecyclerView.Adapter<ReviewAdapter.ReviewView
             tvContent = itemView.findViewById(R.id.tvReviewContent);
             tvHelpful = itemView.findViewById(R.id.tvHelpful);
             tvReply = itemView.findViewById(R.id.tvReply);
+            dividerReply = itemView.findViewById(R.id.dividerReply);
         }
 
         void bind(Review review) {
             if (review == null) return;
 
-            // Avatar
-            if (review.getReviewer_avatar() != null) {
+            if (!TextUtils.isEmpty(review.getReviewer_avatar())) {
                 Glide.with(itemView.getContext())
                         .load(review.getReviewer_avatar())
                         .circleCrop()
                         .placeholder(R.drawable.ic_person)
+                        .error(R.drawable.ic_person)
                         .into(ivAvatar);
+            } else {
+                ivAvatar.setImageResource(R.drawable.ic_person);
             }
 
-            // Name
-            tvName.setText(review.getReviewer_name() != null ? review.getReviewer_name() : "Người dùng");
-
-            // Rating stars
-            int rating = review.getRating() != null ? review.getRating() : 0;
-            tvRating.setText(generateStars(rating));
-
-            // Date
+            tvName.setText(!TextUtils.isEmpty(review.getReviewer_name())
+                    ? review.getReviewer_name() : "Người dùng UniMarket");
+            tvRating.setText(generateStars(review.getRating() != null ? review.getRating() : 0));
             tvDate.setText(formatDate(review.getCreated_at_timestamp()));
+            tvTitle.setText(!TextUtils.isEmpty(review.getTitle()) ? review.getTitle() : "Đánh giá sản phẩm");
+            tvContent.setText(!TextUtils.isEmpty(review.getContent()) ? review.getContent() : "Người mua chưa thêm nội dung.");
+            updateHelpfulText(review);
 
-            // Title & Content
-            tvTitle.setText(review.getTitle() != null ? review.getTitle() : "");
-            tvContent.setText(review.getContent() != null ? review.getContent() : "");
+            tvReply.setVisibility(View.GONE);
+            dividerReply.setVisibility(View.GONE);
+            tvHelpful.setOnClickListener(v -> markHelpful(review));
+        }
 
-            // Helpful count
-            Integer helpfulCount = review.getHelpful_count() != null ? review.getHelpful_count() : 0;
-            tvHelpful.setText("👍 Hữu ích (" + helpfulCount + ")");
+        private void markHelpful(Review review) {
+            int current = review.getHelpful_count() != null ? review.getHelpful_count() : 0;
+            review.setHelpful_count(current + 1);
+            tvHelpful.setEnabled(false);
+            updateHelpfulText(review);
 
-            // Reply button
-            tvReply.setOnClickListener(v -> {
-                // TODO: Implement reply functionality
+            reviewService.save(review, result -> {
+                if (!result.isSuccess()) {
+                    review.setHelpful_count(current);
+                    tvHelpful.setEnabled(true);
+                    updateHelpfulText(review);
+                    Toast.makeText(itemView.getContext(),
+                            "Không thể lưu lượt hữu ích: " + result.getError(),
+                            Toast.LENGTH_SHORT).show();
+                }
             });
+        }
 
-            tvHelpful.setOnClickListener(v -> {
-                // TODO: Implement helpful functionality
-            });
+        private void updateHelpfulText(Review review) {
+            int helpfulCount = review.getHelpful_count() != null ? review.getHelpful_count() : 0;
+            tvHelpful.setText("Hữu ích (" + helpfulCount + ")");
         }
 
         private String generateStars(int rating) {
             StringBuilder stars = new StringBuilder();
             for (int i = 0; i < 5; i++) {
-                if (i < rating) {
-                    stars.append("★");
-                } else {
-                    stars.append("☆");
-                }
+                stars.append(i < rating ? "★" : "☆");
             }
             return stars.toString();
         }
@@ -126,9 +134,7 @@ public class ReviewAdapter extends RecyclerView.Adapter<ReviewAdapter.ReviewView
         private String formatDate(Long timestamp) {
             if (timestamp == null) return "";
 
-            long now = System.currentTimeMillis();
-            long diff = now - timestamp;
-
+            long diff = System.currentTimeMillis() - timestamp;
             long days = TimeUnit.MILLISECONDS.toDays(diff);
             if (days > 0) {
                 if (days == 1) return "1 ngày trước";

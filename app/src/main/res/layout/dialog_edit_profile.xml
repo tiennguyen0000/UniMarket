@@ -9,7 +9,7 @@
     <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Há» vÃ  tÃªn"
+        android:hint="Họ và tên"
         app:boxBackgroundMode="outline">
 
         <com.google.android.material.textfield.TextInputEditText
@@ -23,7 +23,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
-        android:hint="Sá»‘ Ä‘iá»‡n thoáº¡i"
+        android:hint="Số điện thoại"
         app:boxBackgroundMode="outline">
 
         <com.google.android.material.textfield.TextInputEditText
@@ -37,7 +37,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
-        android:hint="TrÆ°á»ng"
+        android:hint="Trường"
         app:boxBackgroundMode="outline">
 
         <com.google.android.material.textfield.TextInputEditText

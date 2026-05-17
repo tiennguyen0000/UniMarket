@@ -28,37 +28,51 @@ public class ProfileViewModel extends ViewModel {
     private final MutableLiveData<ProfileUiState> uiState =
             new MutableLiveData<>(ProfileUiState.initial());
     private final MutableLiveData<ProfileUiEvent> uiEvent = new MutableLiveData<>();
+    private int pendingLoads = 0;
 
     public LiveData<ProfileUiState> getUiState() { return uiState; }
     public LiveData<ProfileUiEvent> getUiEvent() { return uiEvent; }
 
     public void loadProfile(String userId, String displayName) {
+        if (TextUtils.isEmpty(userId)) {
+            return;
+        }
+
+        pendingLoads = 4;
+        updateState(null, true, null, null, null, null, null);
+
         if (!TextUtils.isEmpty(displayName)) {
             User initial = new User();
             initial.setId(userId);
             initial.setFull_name(displayName);
-            updateState(initial, false, null, null, null, null, null);
+            updateState(initial, null, null, null, null, null, null);
         }
 
-        userService.fetchById(userId, result -> {
-            if (result.isSuccess() && result.getData() != null) {
-                updateState(result.getData(), null, null, null, null, null, null);
-            }
-        });
-
+        loadProfileInfo(userId);
         loadOrders(userId);
         loadPosts(userId);
         loadRating(userId);
     }
 
+    private void loadProfileInfo(String userId) {
+        userService.fetchById(userId, result -> {
+            if (result.isSuccess() && result.getData() != null) {
+                updateState(result.getData(), null, null, null, null, null, null);
+            }
+            finishLoad();
+        });
+    }
+
     private void loadOrders(String userId) {
         orderService.getOrdersByBuyerId(userId, new AsyncCrudService.ListCallback<Order>() {
             @Override public void onSuccess(List<Order> data) {
-                updateState(null, null, null, data, null, null, null);
+                updateState(null, null, null, data != null ? data : new ArrayList<>(), null, null, null);
+                finishLoad();
             }
 
             @Override public void onError(String error) {
                 updateState(null, null, null, new ArrayList<>(), null, null, null);
+                finishLoad();
             }
         });
     }
@@ -66,11 +80,13 @@ public class ProfileViewModel extends ViewModel {
     private void loadPosts(String userId) {
         productService.getProductsBySellerId(userId, new AsyncCrudService.ListCallback<Product>() {
             @Override public void onSuccess(List<Product> data) {
-                updateState(null, null, null, null, data, null, null);
+                updateState(null, null, null, null, data != null ? data : new ArrayList<>(), null, null);
+                finishLoad();
             }
 
             @Override public void onError(String error) {
                 updateState(null, null, null, null, new ArrayList<>(), null, null);
+                finishLoad();
             }
         });
     }
@@ -81,6 +97,7 @@ public class ProfileViewModel extends ViewModel {
             public void onSuccess(List<Review> data) {
                 if (data == null || data.isEmpty()) {
                     updateState(null, null, null, null, null, 0d, 0);
+                    finishLoad();
                     return;
                 }
 
@@ -95,11 +112,13 @@ public class ProfileViewModel extends ViewModel {
 
                 double average = count > 0 ? total / count : 0;
                 updateState(null, null, null, null, null, average, count);
+                finishLoad();
             }
 
             @Override
             public void onError(String error) {
                 updateState(null, null, null, null, null, 0d, 0);
+                finishLoad();
             }
         });
     }
@@ -124,11 +143,18 @@ public class ProfileViewModel extends ViewModel {
         userService.save(updatedUser, result -> {
             updateState(result.isSuccess() ? updatedUser : null, null, false, null, null, null, null);
             if (result.isSuccess()) {
-                uiEvent.setValue(ProfileUiEvent.success("ÄÃ£ lÆ°u há»“ sÆ¡!"));
+                uiEvent.setValue(ProfileUiEvent.success("Đã lưu hồ sơ!"));
             } else {
-                uiEvent.setValue(ProfileUiEvent.error("LÆ°u tháº¥t báº¡i: " + result.getError()));
+                uiEvent.setValue(ProfileUiEvent.error("Lưu thất bại: " + result.getError()));
             }
         });
+    }
+
+    private void finishLoad() {
+        pendingLoads--;
+        if (pendingLoads <= 0) {
+            updateState(null, false, null, null, null, null, null);
+        }
     }
 
     private void updateState(User profile, Boolean loading, Boolean saving,

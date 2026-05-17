@@ -1,6 +1,8 @@
 package com.example.unimarket.pages.profile;
 
 import android.content.Intent;
+import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
@@ -22,7 +24,11 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.example.unimarket.MainActivity;
 import com.example.unimarket.R;
+import com.example.unimarket.data.model.Order;
+import com.example.unimarket.data.model.Product;
 import com.example.unimarket.data.model.User;
+import com.example.unimarket.pages.home.HomeUiUtils;
+import com.example.unimarket.pages.home.ProductDetailBottomSheetFragment;
 import com.example.unimarket.pages.post.PostListingFragment;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.tabs.TabLayout;
@@ -54,6 +60,7 @@ public class ProfileFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        setupLightSystemBars();
 
         tvName = view.findViewById(R.id.tvName);
         tvUniversity = view.findViewById(R.id.tvUniversity);
@@ -68,9 +75,8 @@ public class ProfileFragment extends Fragment {
         tabLayout = view.findViewById(R.id.tabLayout);
         rvContent = view.findViewById(R.id.rvContent);
 
-        ordersAdapter = new OrdersInProfileAdapter();
-        postsAdapter = new UserPostAdapter(product ->
-                Toast.makeText(requireContext(), product.getTitle(), Toast.LENGTH_SHORT).show());
+        ordersAdapter = new OrdersInProfileAdapter(this::showOrderDetailDialog);
+        postsAdapter = new UserPostAdapter(this::openPostDetail);
 
         rvContent.setNestedScrollingEnabled(false);
 
@@ -80,6 +86,17 @@ public class ProfileFragment extends Fragment {
         loadUserProfile();
         setupListeners();
         switchTab(0);
+    }
+
+    private void setupLightSystemBars() {
+        requireActivity().getWindow().setStatusBarColor(Color.WHITE);
+        requireActivity().getWindow().setNavigationBarColor(Color.WHITE);
+
+        int flags = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+        }
+        requireActivity().getWindow().getDecorView().setSystemUiVisibility(flags);
     }
 
     private void loadUserProfile() {
@@ -149,13 +166,13 @@ public class ProfileFragment extends Fragment {
             if (user == null) return;
 
             tvName.setText(!TextUtils.isEmpty(user.getFull_name()) ? user.getFull_name() : "UniMarket User");
-            tvUniversity.setText(!TextUtils.isEmpty(user.getUniversity()) ? user.getUniversity() : "ChÆ°a cáº­p nháº­t trÆ°á»ng");
+            tvUniversity.setText(!TextUtils.isEmpty(user.getUniversity()) ? user.getUniversity() : "Chưa cập nhật trường");
 
             if (user.is_verified()) {
-                tvVerifyStatus.setText("Sinh viÃªn Ä‘Ã£ xÃ¡c thá»±c");
+                tvVerifyStatus.setText("Sinh viên đã xác thực");
                 tvVerifyStatus.setTextColor(getResources().getColor(R.color.verification_green));
             } else {
-                tvVerifyStatus.setText("ChÆ°a xÃ¡c thá»±c");
+                tvVerifyStatus.setText("Chưa xác thực");
                 tvVerifyStatus.setTextColor(getResources().getColor(R.color.text_secondary));
             }
 
@@ -194,16 +211,16 @@ public class ProfileFragment extends Fragment {
         }
 
         AlertDialog dialog = new MaterialAlertDialogBuilder(requireContext())
-                .setTitle("Chá»‰nh sá»­a há»“ sÆ¡")
+                .setTitle("Chỉnh sửa hồ sơ")
                 .setView(dialogView)
-                .setNegativeButton("Há»§y", null)
-                .setPositiveButton("LÆ°u", null)
+                .setNegativeButton("Hủy", null)
+                .setPositiveButton("Lưu", null)
                 .create();
 
         dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
             FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
             if (firebaseUser == null) {
-                Toast.makeText(requireContext(), "Vui lÃ²ng Ä‘Äƒng nháº­p láº¡i", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "Vui lòng đăng nhập lại", Toast.LENGTH_SHORT).show();
                 dialog.dismiss();
                 return;
             }
@@ -213,7 +230,7 @@ public class ProfileFragment extends Fragment {
             String university = etUniversity.getText() != null ? etUniversity.getText().toString().trim() : "";
 
             if (TextUtils.isEmpty(fullName)) {
-                etFullName.setError("Vui lÃ²ng nháº­p há» vÃ  tÃªn");
+                etFullName.setError("Vui lòng nhập họ và tên");
                 return;
             }
 
@@ -228,7 +245,7 @@ public class ProfileFragment extends Fragment {
         ProfileUiState state = profileViewModel.getUiState().getValue();
         User user = state != null ? state.getProfile() : null;
         if (user == null) {
-            Toast.makeText(requireContext(), "ChÆ°a cÃ³ thÃ´ng tin há»“ sÆ¡ Ä‘á»ƒ chia sáº»", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Chưa có thông tin hồ sơ để chia sẻ", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -236,19 +253,83 @@ public class ProfileFragment extends Fragment {
         String university = !TextUtils.isEmpty(user.getUniversity()) ? user.getUniversity() : "UniMarket";
         String ratingText = state != null && state.getRatingCount() > 0
                 ? String.format(Locale.getDefault(), "%.1f/5", state.getRatingAverage())
-                : "ChÆ°a cÃ³ Ä‘Ã¡nh giÃ¡";
+                : "Chưa có đánh giá";
 
         String shareText = displayName
                 + " - " + university
-                + "\nTin Ä‘Äƒng: " + (state != null ? state.getPosts().size() : 0)
-                + "\nÄÆ¡n hÃ ng: " + (state != null ? state.getOrders().size() : 0)
-                + "\nÄÃ¡nh giÃ¡: " + ratingText
-                + "\nHá»“ sÆ¡ trÃªn UniMarket";
+                + "\nTin đăng: " + (state != null ? state.getPosts().size() : 0)
+                + "\nĐơn hàng: " + (state != null ? state.getOrders().size() : 0)
+                + "\nĐánh giá: " + ratingText
+                + "\nHồ sơ trên UniMarket";
 
         Intent shareIntent = new Intent(Intent.ACTION_SEND);
         shareIntent.setType("text/plain");
-        shareIntent.putExtra(Intent.EXTRA_SUBJECT, "Há»“ sÆ¡ UniMarket");
+        shareIntent.putExtra(Intent.EXTRA_SUBJECT, "Hồ sơ UniMarket");
         shareIntent.putExtra(Intent.EXTRA_TEXT, shareText);
-        startActivity(Intent.createChooser(shareIntent, "Chia sáº» há»“ sÆ¡"));
+        startActivity(Intent.createChooser(shareIntent, "Chia sẻ hồ sơ"));
+    }
+
+    private void openPostDetail(Product product) {
+        if (product == null) {
+            return;
+        }
+        String imageUrl = null;
+        if (product.getImage_urls() != null && !product.getImage_urls().isEmpty()) {
+            imageUrl = product.getImage_urls().get(0);
+        }
+        String categoryName = !TextUtils.isEmpty(product.getCategory_id())
+                ? product.getCategory_id().replace("cat_", "") : "Tin đăng của tôi";
+        ProductDetailBottomSheetFragment.newInstance(product, imageUrl, categoryName)
+                .show(getChildFragmentManager(), "profile_post_detail");
+    }
+
+    private void showOrderDetailDialog(Order order) {
+        if (order == null) {
+            return;
+        }
+
+        String orderId = !TextUtils.isEmpty(order.getId())
+                ? "#UM" + order.getId().substring(0, Math.min(6, order.getId().length())).toUpperCase(Locale.ROOT)
+                : "#UM";
+        int quantity = order.getQuantity() != null ? order.getQuantity() : 1;
+        double unitPrice = order.getUnit_price() != null ? order.getUnit_price() : 0;
+        double discount = order.getDiscount_amount() != null ? order.getDiscount_amount() : 0;
+
+        StringBuilder message = new StringBuilder();
+        message.append("Sản phẩm: ")
+                .append(!TextUtils.isEmpty(order.getProduct_title()) ? order.getProduct_title() : "Sản phẩm")
+                .append("\n");
+        message.append("Trạng thái: ").append(statusLabel(order.getStatus())).append("\n");
+        message.append("Số lượng: ").append(quantity).append("\n");
+        if (unitPrice > 0) {
+            message.append("Đơn giá: ").append(HomeUiUtils.formatPrice(unitPrice)).append("\n");
+        }
+        if (!TextUtils.isEmpty(order.getDiscount_code()) || discount > 0) {
+            message.append("Mã giảm giá: ")
+                    .append(!TextUtils.isEmpty(order.getDiscount_code()) ? order.getDiscount_code() : "Đã áp dụng")
+                    .append("\n");
+            message.append("Giảm: ").append(HomeUiUtils.formatPrice(discount)).append("\n");
+        }
+        message.append("Tổng thanh toán: ").append(HomeUiUtils.formatPrice(order.getTotal_price()));
+
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Chi tiết đơn " + orderId)
+                .setMessage(message.toString())
+                .setPositiveButton("Đóng", null)
+                .show();
+    }
+
+    private String statusLabel(String status) {
+        if (TextUtils.isEmpty(status)) {
+            return "Chờ xác nhận";
+        }
+        switch (status.toLowerCase(Locale.ROOT)) {
+            case "pending": return "Chờ xác nhận";
+            case "confirmed": return "Đã xác nhận";
+            case "shipping": return "Đang giao";
+            case "done": return "Hoàn thành";
+            case "cancelled": return "Đã hủy";
+            default: return status;
+        }
     }
 }

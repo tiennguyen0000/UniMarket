@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F9FAFB">
+    android:background="#F4F7FC">
 
     <!-- Top AppBar -->
     <com.google.android.material.appbar.AppBarLayout
@@ -16,7 +16,8 @@
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize">
+            android:layout_height="?attr/actionBarSize"
+            android:background="@color/white">
 
             <TextView
                 android:layout_width="wrap_content"
@@ -124,6 +125,7 @@
                 android:layout_marginTop="24dp"
                 app:cardCornerRadius="16dp"
                 app:cardElevation="0dp"
+                app:cardBackgroundColor="@color/white"
                 app:strokeColor="#EAECF0"
                 app:strokeWidth="1dp">
 
@@ -151,6 +153,7 @@
                         android:inputType="text"
                         android:paddingHorizontal="16dp"
                         android:textColor="@color/text_primary"
+                        android:textColorHint="#98A2B3"
                         android:textSize="15sp" />
 
                     <EditText
@@ -163,6 +166,7 @@
                         android:inputType="number"
                         android:paddingHorizontal="16dp"
                         android:textColor="@color/text_primary"
+                        android:textColorHint="#98A2B3"
                         android:textSize="15sp" />
 
                     <LinearLayout
@@ -199,6 +203,7 @@
                 android:layout_marginTop="16dp"
                 app:cardCornerRadius="16dp"
                 app:cardElevation="0dp"
+                app:cardBackgroundColor="@color/white"
                 app:strokeColor="#EAECF0"
                 app:strokeWidth="1dp">
 
@@ -242,6 +247,7 @@
                             android:gravity="center"
                             android:text="Mới (100%)"
                             android:textColor="@color/text_primary"
+                            android:textColorHighlight="@color/primary"
                             android:textSize="14sp"
                             android:textStyle="bold" />
 
@@ -256,6 +262,7 @@
                             android:gravity="center"
                             android:text="Đã sử dụng"
                             android:textColor="@color/text_primary"
+                            android:textColorHighlight="@color/primary"
                             android:textSize="14sp"
                             android:textStyle="bold" />
                     </RadioGroup>
@@ -272,6 +279,7 @@
                         android:minHeight="120dp"
                         android:padding="16dp"
                         android:textColor="@color/text_primary"
+                        android:textColorHint="#98A2B3"
                         android:textSize="15sp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -285,7 +293,8 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
         app:cardCornerRadius="0dp"
-        app:cardElevation="16dp">
+        app:cardElevation="16dp"
+        app:cardBackgroundColor="@color/white">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -301,6 +310,7 @@
                 android:insetBottom="0dp"
                 android:text="Đăng tin ngay"
                 android:textAllCaps="false"
+                android:textColor="@android:color/white"
                 android:textSize="16sp"
                 android:textStyle="bold"
                 app:backgroundTint="@color/primary"

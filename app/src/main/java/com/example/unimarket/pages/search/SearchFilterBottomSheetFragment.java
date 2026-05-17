@@ -1,13 +1,18 @@
 package com.example.unimarket.pages.search;
 
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
+import android.view.Window;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -23,11 +28,13 @@ public class SearchFilterBottomSheetFragment extends BottomSheetDialogFragment {
     private CheckBox cbUsed;
     private CheckBox cbFreeShip;
     private CheckBox cbFastShip;
+    private TextView tvFilterSummary;
 
     private double initialMinPrice;
     private double initialMaxPrice = Double.MAX_VALUE;
     private boolean initialFilterNew;
     private boolean initialFilterUsed;
+    private boolean updatingConditionSelection;
     private FilterListener filterListener;
 
     public interface FilterListener {
@@ -55,6 +62,22 @@ public class SearchFilterBottomSheetFragment extends BottomSheetDialogFragment {
     }
 
     @Override
+    public void onStart() {
+        super.onStart();
+        if (getDialog() == null) {
+            return;
+        }
+        Window window = getDialog().getWindow();
+        if (window != null) {
+            window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        }
+        View bottomSheet = getDialog().findViewById(com.google.android.material.R.id.design_bottom_sheet);
+        if (bottomSheet != null) {
+            bottomSheet.setBackgroundColor(Color.TRANSPARENT);
+        }
+    }
+
+    @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
@@ -64,17 +87,20 @@ public class SearchFilterBottomSheetFragment extends BottomSheetDialogFragment {
         cbUsed = view.findViewById(R.id.cbUsed);
         cbFreeShip = view.findViewById(R.id.cbFreeShip);
         cbFastShip = view.findViewById(R.id.cbFastShip);
+        tvFilterSummary = view.findViewById(R.id.tvFilterSummary);
 
         bindInitialState();
+        setupLiveSummary();
         disableUnsupportedShippingFilters();
+        updateFilterSummary();
 
         ImageView closeButton = view.findViewById(R.id.closeButton);
         closeButton.setOnClickListener(v -> dismiss());
 
-        Button btnApplyFilter = view.findViewById(R.id.btnApplyFilter);
+        TextView btnApplyFilter = view.findViewById(R.id.btnApplyFilter);
         btnApplyFilter.setOnClickListener(v -> applyFilter());
 
-        Button btnResetFilter = view.findViewById(R.id.btnResetFilter);
+        TextView btnResetFilter = view.findViewById(R.id.btnResetFilter);
         btnResetFilter.setOnClickListener(v -> resetFilter());
     }
 
@@ -87,32 +113,65 @@ public class SearchFilterBottomSheetFragment extends BottomSheetDialogFragment {
         }
         cbNew.setChecked(initialFilterNew);
         cbUsed.setChecked(initialFilterUsed);
+        cbFreeShip.setChecked(false);
+        cbFastShip.setChecked(false);
+    }
+
+    private void setupLiveSummary() {
+        TextWatcher watcher = new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                updateFilterSummary();
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+            }
+        };
+        etPriceFrom.addTextChangedListener(watcher);
+        etPriceTo.addTextChangedListener(watcher);
+        cbNew.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (updatingConditionSelection) {
+                return;
+            }
+            if (isChecked) {
+                updatingConditionSelection = true;
+                cbUsed.setChecked(false);
+                updatingConditionSelection = false;
+            }
+            updateFilterSummary();
+        });
+        cbUsed.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (updatingConditionSelection) {
+                return;
+            }
+            if (isChecked) {
+                updatingConditionSelection = true;
+                cbNew.setChecked(false);
+                updatingConditionSelection = false;
+            }
+            updateFilterSummary();
+        });
     }
 
     private void applyFilter() {
-        double minPrice = 0;
-        double maxPrice = Double.MAX_VALUE;
-
-        try {
-            String fromText = etPriceFrom.getText().toString().trim();
-            if (!fromText.isEmpty()) {
-                minPrice = Double.parseDouble(fromText);
-            }
-
-            String toText = etPriceTo.getText().toString().trim();
-            if (!toText.isEmpty()) {
-                maxPrice = Double.parseDouble(toText);
-            }
-        } catch (NumberFormatException e) {
-            minPrice = 0;
+        double minPrice = parsePrice(etPriceFrom.getText());
+        double maxPrice = parsePrice(etPriceTo.getText());
+        if (maxPrice <= 0) {
             maxPrice = Double.MAX_VALUE;
         }
-
-        boolean filterNew = cbNew.isChecked();
-        boolean filterUsed = cbUsed.isChecked();
+        if (maxPrice < minPrice) {
+            double temp = minPrice;
+            minPrice = maxPrice;
+            maxPrice = temp;
+        }
 
         if (filterListener != null) {
-            filterListener.onApplyFilter(minPrice, maxPrice, filterNew, filterUsed, false, false);
+            filterListener.onApplyFilter(minPrice, maxPrice, cbNew.isChecked(), cbUsed.isChecked(), false, false);
         }
 
         dismiss();
@@ -125,6 +184,7 @@ public class SearchFilterBottomSheetFragment extends BottomSheetDialogFragment {
         cbUsed.setChecked(false);
         cbFreeShip.setChecked(false);
         cbFastShip.setChecked(false);
+        updateFilterSummary();
 
         if (filterListener != null) {
             filterListener.onResetFilter();
@@ -138,9 +198,49 @@ public class SearchFilterBottomSheetFragment extends BottomSheetDialogFragment {
         cbFastShip.setChecked(false);
         cbFreeShip.setEnabled(false);
         cbFastShip.setEnabled(false);
-        cbFreeShip.setAlpha(0.55f);
-        cbFastShip.setAlpha(0.55f);
-        cbFreeShip.setText("Miá»…n phÃ­ váº­n chuyá»ƒn (sáº½ há»— trá»£ sau)");
-        cbFastShip.setText("Giao hÃ ng nhanh (sáº½ há»— trá»£ sau)");
+        cbFreeShip.setText("Miễn phí ship");
+        cbFastShip.setText("Giao nhanh");
+    }
+
+    private void updateFilterSummary() {
+        if (tvFilterSummary == null) {
+            return;
+        }
+
+        int activeCount = 0;
+        if (parsePrice(etPriceFrom.getText()) > 0 || parsePrice(etPriceTo.getText()) > 0) {
+            activeCount++;
+        }
+        if (cbNew != null && cbNew.isChecked()) {
+            activeCount++;
+        }
+        if (cbUsed != null && cbUsed.isChecked()) {
+            activeCount++;
+        }
+
+        if (activeCount == 0) {
+            tvFilterSummary.setText("Tinh chỉnh kết quả theo nhu cầu của bạn");
+        } else {
+            tvFilterSummary.setText("Đang áp dụng " + activeCount + " bộ lọc");
+        }
+    }
+
+    private double parsePrice(Editable editable) {
+        if (editable == null) {
+            return 0;
+        }
+        String raw = editable.toString().trim();
+        if (raw.isEmpty()) {
+            return 0;
+        }
+        String digits = raw.replaceAll("[^0-9]", "");
+        if (digits.isEmpty()) {
+            return 0;
+        }
+        try {
+            return Double.parseDouble(digits);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 }

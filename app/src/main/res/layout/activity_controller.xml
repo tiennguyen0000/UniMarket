@@ -171,6 +171,23 @@
 
     </com.google.android.material.card.MaterialCardView>
 
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabChat"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="18dp"
+        android:layout_marginBottom="16dp"
+        android:contentDescription="UniMarket Chat"
+        android:elevation="14dp"
+        android:src="@drawable/ic_chat_24"
+        app:backgroundTint="#21409A"
+        app:borderWidth="0dp"
+        app:elevation="14dp"
+        app:fabSize="normal"
+        app:layout_constraintBottom_toTopOf="@id/bottomNavCard"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:tint="@android:color/white" />
+
     <ImageView
         android:id="@+id/imageViewMenu"
         android:layout_width="56dp"

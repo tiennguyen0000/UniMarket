@@ -6,6 +6,7 @@ public class OrderItem {
     private String product_id;
     private String seller_id;
     private Double price;
+    private Integer quantity;
 
     public OrderItem() {
     }
@@ -28,4 +29,6 @@ public class OrderItem {
     public void setSeller_id(String seller_id) { this.seller_id = seller_id; }
     public Double getPrice() { return price; }
     public void setPrice(Double price) { this.price = price; }
+    public Integer getQuantity() { return quantity; }
+    public void setQuantity(Integer quantity) { this.quantity = quantity; }
 }

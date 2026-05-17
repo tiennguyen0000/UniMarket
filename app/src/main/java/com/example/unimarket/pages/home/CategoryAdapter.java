@@ -73,7 +73,7 @@ public class CategoryAdapter extends RecyclerView.Adapter<CategoryAdapter.Catego
             String categoryName = category != null ? category.getName() : null;
             String displayName = categoryName != null && !categoryName.trim().isEmpty()
                     ? categoryName
-                    : "Danh muc";
+                    : "Danh mục";
 
             ivIcon.setImageResource(HomeUiUtils.iconResForCategoryName(displayName));
             tvName.setText(displayName);

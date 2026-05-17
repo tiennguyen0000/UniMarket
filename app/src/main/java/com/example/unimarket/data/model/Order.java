@@ -7,6 +7,10 @@ public class Order {
     private String product_id;
     private String product_title;
     private String product_image_url;
+    private Integer quantity;
+    private Double unit_price;
+    private String discount_code;
+    private Double discount_amount;
     private Double total_price;
     private String status;   // pending | confirmed | shipping | done | cancelled
     private String created_at;
@@ -26,6 +30,14 @@ public class Order {
     public void setProduct_title(String product_title) { this.product_title = product_title; }
     public String getProduct_image_url() { return product_image_url; }
     public void setProduct_image_url(String product_image_url) { this.product_image_url = product_image_url; }
+    public Integer getQuantity() { return quantity; }
+    public void setQuantity(Integer quantity) { this.quantity = quantity; }
+    public Double getUnit_price() { return unit_price; }
+    public void setUnit_price(Double unit_price) { this.unit_price = unit_price; }
+    public String getDiscount_code() { return discount_code; }
+    public void setDiscount_code(String discount_code) { this.discount_code = discount_code; }
+    public Double getDiscount_amount() { return discount_amount; }
+    public void setDiscount_amount(Double discount_amount) { this.discount_amount = discount_amount; }
     public Double getTotal_price() { return total_price; }
     public void setTotal_price(Double total_price) { this.total_price = total_price; }
     public String getStatus() { return status; }

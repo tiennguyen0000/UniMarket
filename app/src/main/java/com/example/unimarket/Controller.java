@@ -1,5 +1,7 @@
 package com.example.unimarket;
 
+import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.ImageView;
@@ -11,6 +13,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.navigation.NavController;
 import androidx.navigation.NavDestination;
 import androidx.navigation.fragment.NavHostFragment;
+
+import com.example.unimarket.pages.chat.ChatInboxBottomSheetFragment;
 
 public class Controller extends AppCompatActivity {
 	private static final int TAB_SELECTED_COLOR = 0xFF21409A;
@@ -25,6 +29,7 @@ public class Controller extends AppCompatActivity {
 	private android.view.View tabProfile;
 	// tab Posting
 	private View imageViewMenu;
+	private View fabChat;
 
 	// ImageView
 	private ImageView ivTabHome;
@@ -41,6 +46,7 @@ public class Controller extends AppCompatActivity {
 	@Override
 	protected void onCreate(@Nullable Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+		setupLightSystemBars();
 		setContentView(R.layout.activity_controller);
 
 		initViews();
@@ -66,6 +72,17 @@ public class Controller extends AppCompatActivity {
 		}
 	}
 
+	private void setupLightSystemBars() {
+		getWindow().setStatusBarColor(Color.WHITE);
+		getWindow().setNavigationBarColor(Color.WHITE);
+
+		int flags = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+			flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+		}
+		getWindow().getDecorView().setSystemUiVisibility(flags);
+	}
+
 	private void initViews() {
 		// Tab
 		tabHome    = findViewById(R.id.tabHome);
@@ -75,6 +92,7 @@ public class Controller extends AppCompatActivity {
 
 		// FAB "+" giữa bottom bar
 		imageViewMenu = findViewById(R.id.imageViewMenu);
+		fabChat = findViewById(R.id.fabChat);
 
 		// Icon
 		ivTabHome    = findViewById(R.id.ivTabHome);
@@ -95,6 +113,14 @@ public class Controller extends AppCompatActivity {
 		tabOrders.setOnClickListener(v -> navigateTo(R.id.ordersFragment));
 		tabProfile.setOnClickListener(v -> navigateTo(R.id.profileFragment));
 		imageViewMenu.setOnClickListener(v -> navigateTo(R.id.postListingFragment));
+		fabChat.setOnClickListener(v -> showChatBox());
+	}
+
+	private void showChatBox() {
+		if (getSupportFragmentManager().findFragmentByTag("unimarket_chat") != null) {
+			return;
+		}
+		new ChatInboxBottomSheetFragment().show(getSupportFragmentManager(), "unimarket_chat");
 	}
 
 	private void navigateTo(int destinationId) {
@@ -118,9 +144,11 @@ public class Controller extends AppCompatActivity {
 		if (destinationId == R.id.postListingFragment) {
 			bottomNav.setVisibility(View.GONE);
 			if (imageViewMenu != null) imageViewMenu.setVisibility(View.GONE);
+			if (fabChat != null) fabChat.setVisibility(View.GONE);
 		} else {
 			bottomNav.setVisibility(View.VISIBLE);
 			if (imageViewMenu != null) imageViewMenu.setVisibility(View.VISIBLE);
+			if (fabChat != null) fabChat.setVisibility(View.VISIBLE);
 		}
 
 		setTabSelected(ivTabHome, tvTabHome, destinationId == R.id.homeFragment);

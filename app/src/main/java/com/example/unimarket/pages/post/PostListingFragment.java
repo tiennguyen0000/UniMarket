@@ -1,6 +1,8 @@
 package com.example.unimarket.pages.post;
 
+import android.graphics.Color;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
@@ -85,7 +87,12 @@ public class PostListingFragment extends Fragment {
         layoutImages = view.findViewById(R.id.layoutImages);
 
         androidx.appcompat.widget.Toolbar toolbar = view.findViewById(R.id.toolbar);
-        toolbar.setNavigationIcon(android.R.drawable.ic_menu_revert);
+        setupLightSystemBars();
+        toolbar.setNavigationIcon(R.drawable.ic_back);
+        if (toolbar.getNavigationIcon() != null) {
+            toolbar.getNavigationIcon().setTint(getResources().getColor(R.color.text_primary));
+        }
+        toolbar.setNavigationContentDescription("Quay lại");
         toolbar.setNavigationOnClickListener(v ->
                 NavHostFragment.findNavController(this).popBackStack()
         );
@@ -104,6 +111,17 @@ public class PostListingFragment extends Fragment {
         setupListeners();
     }
 
+    private void setupLightSystemBars() {
+        requireActivity().getWindow().setStatusBarColor(Color.WHITE);
+        requireActivity().getWindow().setNavigationBarColor(Color.WHITE);
+
+        int flags = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+        }
+        requireActivity().getWindow().getDecorView().setSystemUiVisibility(flags);
+    }
+
     private void observeViewModel() {
         viewModel.getCategories().observe(getViewLifecycleOwner(), cats -> {
             if (cats != null) {
@@ -113,17 +131,17 @@ public class PostListingFragment extends Fragment {
 
         viewModel.getSelectedImages().observe(getViewLifecycleOwner(), images -> {
             renderSelectedImages(images);
-            tvImageCount.setText(images.size() + "/6 áº£nh");
+            tvImageCount.setText(images.size() + "/6 ảnh");
         });
 
         viewModel.getIsLoading().observe(getViewLifecycleOwner(), loading -> {
             btnSubmit.setEnabled(!loading);
-            btnSubmit.setText(loading ? "Äang xá»­ lÃ½..." : "ÄÄƒng tin ngay");
+            btnSubmit.setText(loading ? "Đang xử lý..." : "Đăng tin ngay");
         });
 
         viewModel.getPostSuccess().observe(getViewLifecycleOwner(), success -> {
             if (Boolean.TRUE.equals(success)) {
-                Toast.makeText(requireContext(), "ÄÄƒng tin thÃ nh cÃ´ng!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "Đăng tin thành công!", Toast.LENGTH_SHORT).show();
                 getParentFragmentManager().setFragmentResult(RESULT_LISTING_CREATED, new Bundle());
                 NavHostFragment.findNavController(this).popBackStack();
             }
@@ -159,7 +177,7 @@ public class PostListingFragment extends Fragment {
             if (current != null && current.size() < 6) {
                 pickImagesLauncher.launch("image/*");
             } else {
-                Toast.makeText(requireContext(), "Tá»‘i Ä‘a 6 áº£nh", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "Tối đa 6 ảnh", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -169,7 +187,7 @@ public class PostListingFragment extends Fragment {
 
     private void showCategoryDialog() {
         if (categoryList.isEmpty()) {
-            Toast.makeText(requireContext(), "Äang táº£i danh má»¥c...", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Đang tải danh mục...", Toast.LENGTH_SHORT).show();
             return;
         }
         String[] names = new String[categoryList.size()];
@@ -178,7 +196,7 @@ public class PostListingFragment extends Fragment {
         }
 
         new AlertDialog.Builder(requireContext())
-                .setTitle("Chá»n danh má»¥c")
+                .setTitle("Chọn danh mục")
                 .setItems(names, (dialog, which) -> {
                     Category selected = categoryList.get(which);
                     selectedCategoryId = selected.getId();
@@ -194,19 +212,19 @@ public class PostListingFragment extends Fragment {
         String description = etDescription.getText().toString().trim();
 
         if (TextUtils.isEmpty(title)) {
-            etTitle.setError("Vui lÃ²ng nháº­p tiÃªu Ä‘á»");
+            etTitle.setError("Vui lòng nhập tiêu đề");
             return;
         }
         if (TextUtils.isEmpty(priceStr)) {
-            etPrice.setError("Vui lÃ²ng nháº­p giÃ¡");
+            etPrice.setError("Vui lòng nhập giá");
             return;
         }
         if (selectedCategoryId == null) {
-            Toast.makeText(requireContext(), "Vui lÃ²ng chá»n danh má»¥c", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Vui lòng chọn danh mục", Toast.LENGTH_SHORT).show();
             return;
         }
         if (rgCondition.getCheckedRadioButtonId() == -1) {
-            Toast.makeText(requireContext(), "Vui lÃ²ng chá»n tÃ¬nh tráº¡ng", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Vui lòng chọn tình trạng", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -217,17 +235,17 @@ public class PostListingFragment extends Fragment {
         try {
             product.setPrice(Double.parseDouble(priceStr));
             if (product.getPrice() == null || product.getPrice() <= 0) {
-                etPrice.setError("GiÃ¡ pháº£i lá»›n hÆ¡n 0");
+                etPrice.setError("Giá phải lớn hơn 0");
                 return;
             }
         } catch (NumberFormatException e) {
-            etPrice.setError("GiÃ¡ khÃ´ng há»£p lá»‡");
+            etPrice.setError("Giá không hợp lệ");
             return;
         }
 
         String sellerId = FirebaseAuth.getInstance().getUid();
         if (TextUtils.isEmpty(sellerId)) {
-            Toast.makeText(requireContext(), "Vui lÃ²ng Ä‘Äƒng nháº­p Ä‘á»ƒ Ä‘Äƒng tin", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Vui lòng đăng nhập để đăng tin", Toast.LENGTH_SHORT).show();
             return;
         }
         product.setSeller_id(sellerId);

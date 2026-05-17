@@ -25,8 +25,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class HomeViewModel extends ViewModel {
     private static final String TAG = "HomeViewModel";
     private static final int REQUEST_COUNT = 3;
-    private static final int DEFAULT_HOME_PRODUCT_LIMIT = 12;
-
     private final CategoryService categoryService = new CategoryService();
     private final ProductService productService = new ProductService();
     private final ProductImageService productImageService = new ProductImageService();
@@ -40,7 +38,9 @@ public class HomeViewModel extends ViewModel {
     public LiveData<HomeUiEvent> getUiEvent() { return uiEvent; }
 
     public void loadHomeData() {
-        loadData(DEFAULT_HOME_PRODUCT_LIMIT);
+        pendingRequests = 1;
+        updateState(true, null, null, null, null);
+        loadCategories();
     }
 
     public void loadCatalogData() {
@@ -203,27 +203,27 @@ public class HomeViewModel extends ViewModel {
 
     private List<Category> buildFallbackCategories() {
         List<Category> fb = new ArrayList<>();
-        fb.add(new Category("cat_laptop",      "Laptop & MÃ¡y tÃ­nh",               null));
-        fb.add(new Category("cat_phone",       "Äiá»‡n thoáº¡i & MÃ¡y tÃ­nh báº£ng",      null));
-        fb.add(new Category("cat_books",       "GiÃ¡o trÃ¬nh & SÃ¡ch",               null));
-        fb.add(new Category("cat_accessories", "Phá»¥ kiá»‡n cÃ´ng nghá»‡",              null));
-        fb.add(new Category("cat_stationery",  "Dá»¥ng cá»¥ há»c táº­p",                 null));
-        fb.add(new Category("cat_dorm",        "Äá»“ dÃ¹ng phÃ²ng trá»",               null));
-        fb.add(new Category("cat_fashion",     "Thá»i trang sinh viÃªn",            null));
-        fb.add(new Category("cat_sport",       "Thá»ƒ thao & Giáº£i trÃ­",             null));
+        fb.add(new Category("cat_laptop", "Laptop & Máy tính", null));
+        fb.add(new Category("cat_phone", "Điện thoại & Máy tính bảng", null));
+        fb.add(new Category("cat_books", "Giáo trình & Sách", null));
+        fb.add(new Category("cat_accessories", "Phụ kiện công nghệ", null));
+        fb.add(new Category("cat_stationery", "Dụng cụ học tập", null));
+        fb.add(new Category("cat_dorm", "Đồ dùng phòng trọ", null));
+        fb.add(new Category("cat_fashion", "Thời trang sinh viên", null));
+        fb.add(new Category("cat_sport", "Thể thao & Giải trí", null));
         return fb;
     }
 
     private List<Product> buildFallbackProducts() {
         List<Product> fb = new ArrayList<>();
-        fb.add(makeFallback("fb-1", "cat_laptop",      "MacBook Air M1 8GB/256GB",     14_500_000d, "used"));
-        fb.add(makeFallback("fb-2", "cat_books",       "GiÃ¡o trÃ¬nh Giáº£i tÃ­ch 1",          45_000d, "used"));
-        fb.add(makeFallback("fb-3", "cat_accessories", "Tai nghe Sony WH-1000XM4",      890_000d, "used"));
-        fb.add(makeFallback("fb-4", "cat_dorm",        "Ná»“i cÆ¡m mini 1.2L",             280_000d, "used"));
-        fb.add(makeFallback("fb-5", "cat_accessories", "BÃ n phÃ­m cÆ¡ Keychron K2",       650_000d, "good"));
-        fb.add(makeFallback("fb-6", "cat_phone",       "Samsung Galaxy A54 5G 128GB",  4_200_000d, "used"));
-        fb.add(makeFallback("fb-7", "cat_dorm",        "Quáº¡t sáº¡c Ä‘iá»‡n Sunhouse",        320_000d, "good"));
-        fb.add(makeFallback("fb-8", "cat_sport",       "Vá»£t cáº§u lÃ´ng Yonex Astrox",     650_000d, "used"));
+        fb.add(makeFallback("fb-1", "cat_laptop", "MacBook Air M1 8GB/256GB", 14_500_000d, "used"));
+        fb.add(makeFallback("fb-2", "cat_books", "Giáo trình Giải tích 1", 45_000d, "used"));
+        fb.add(makeFallback("fb-3", "cat_accessories", "Tai nghe Sony WH-1000XM4", 890_000d, "used"));
+        fb.add(makeFallback("fb-4", "cat_dorm", "Nồi cơm mini 1.2L", 280_000d, "used"));
+        fb.add(makeFallback("fb-5", "cat_accessories", "Bàn phím cơ Keychron K2", 650_000d, "good"));
+        fb.add(makeFallback("fb-6", "cat_phone", "Samsung Galaxy A54 5G 128GB", 4_200_000d, "used"));
+        fb.add(makeFallback("fb-7", "cat_dorm", "Quạt sạc điện Sunhouse", 320_000d, "good"));
+        fb.add(makeFallback("fb-8", "cat_sport", "Vợt cầu lông Yonex Astrox", 650_000d, "used"));
         return fb;
     }
 

@@ -10,7 +10,6 @@ import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -47,6 +46,7 @@ public class SearchFragment extends Fragment {
     private TextView sortPriceHigh;
     private TextView sortRating;
     private RecyclerView rvSearchProducts;
+    private View layoutSearchLoading;
 
     private ProductAdapter productAdapter;
     private HomeViewModel homeViewModel;
@@ -63,6 +63,8 @@ public class SearchFragment extends Fragment {
     private double maxPrice = Double.MAX_VALUE;
     private boolean filterNew = false;
     private boolean filterUsed = false;
+    private String initialCategoryName;
+    private boolean catalogLoading = true;
 
     @Nullable
     @Override
@@ -79,6 +81,7 @@ public class SearchFragment extends Fragment {
         initViews(view);
         setupRecyclerView();
         setupClicks();
+        applyInitialCategoryArgument();
         setupRefreshListener();
         setupObservers();
         highlightSelectedSort(sortRelevance);
@@ -92,6 +95,7 @@ public class SearchFragment extends Fragment {
         tvSearchResults = root.findViewById(R.id.tvSearchResults);
         tvResultCount = root.findViewById(R.id.tvResultCount);
         rvSearchProducts = root.findViewById(R.id.rvSearchProducts);
+        layoutSearchLoading = root.findViewById(R.id.layoutSearchLoading);
 
         sortRelevance = root.findViewById(R.id.sortRelevance);
         sortNewest = root.findViewById(R.id.sortNewest);
@@ -104,13 +108,16 @@ public class SearchFragment extends Fragment {
         productAdapter = new ProductAdapter(
                 new ArrayList<>(),
                 new HashMap<>(),
-                product -> Toast.makeText(requireContext(), product.getTitle(), Toast.LENGTH_SHORT).show(),
+                product -> openProductDetail(product,
+                        productImageById.get(product.getId()),
+                        categoryNameById.get(product.getCategory_id())),
                 (product, imageUrl, categoryName) -> openProductDetail(product, imageUrl, categoryName)
         );
         rvSearchProducts.setLayoutManager(new GridLayoutManager(requireContext(), 2));
         rvSearchProducts.setNestedScrollingEnabled(false);
+        rvSearchProducts.setItemAnimator(null);
         rvSearchProducts.setAdapter(productAdapter);
-        rvSearchProducts.addItemDecoration(new GridSpacingItemDecoration(2, dpToPx(12), true));
+        rvSearchProducts.addItemDecoration(new GridSpacingItemDecoration(2, dpToPx(10), true));
     }
 
     private void setupClicks() {
@@ -143,6 +150,18 @@ public class SearchFragment extends Fragment {
         sortRating.setOnClickListener(v -> setSortOption("rating", sortRating));
     }
 
+    private void applyInitialCategoryArgument() {
+        Bundle args = getArguments();
+        if (args == null) {
+            return;
+        }
+        initialCategoryName = args.getString("category_name");
+        if (!TextUtils.isEmpty(initialCategoryName)) {
+            etSearchQuery.setText(initialCategoryName);
+            etSearchQuery.setSelection(etSearchQuery.getText().length());
+        }
+    }
+
     private void setupRefreshListener() {
         getParentFragmentManager().setFragmentResultListener(
                 PostListingFragment.RESULT_LISTING_CREATED,
@@ -163,6 +182,7 @@ public class SearchFragment extends Fragment {
             List<Category> categories = state.getCategories();
             List<Product> products = state.getProducts();
             Map<String, String> images = state.getProductImages();
+            catalogLoading = state.isLoading();
 
             rebuildCategoryMap(categories);
 
@@ -314,6 +334,16 @@ public class SearchFragment extends Fragment {
 
         productAdapter.submitList(new ArrayList<>(sortedList));
         updateSearchSummary(sortedList.size());
+        updateSearchLoading();
+    }
+
+    private void updateSearchLoading() {
+        if (layoutSearchLoading == null || rvSearchProducts == null) {
+            return;
+        }
+        boolean showLoading = catalogLoading && productList.isEmpty();
+        layoutSearchLoading.setVisibility(showLoading ? View.VISIBLE : View.GONE);
+        rvSearchProducts.setVisibility(showLoading ? View.GONE : View.VISIBLE);
     }
 
     private void showFilterBottomSheet() {
@@ -375,9 +405,9 @@ public class SearchFragment extends Fragment {
         String query = etSearchQuery.getText() != null
                 ? etSearchQuery.getText().toString().trim() : "";
         if (TextUtils.isEmpty(query)) {
-            tvSearchResults.setText("Táº¥t cáº£ sáº£n pháº©m");
+            tvSearchResults.setText("Tất cả sản phẩm");
         } else {
-            tvSearchResults.setText("Káº¿t quáº£ cho \"" + query + "\"");
+            tvSearchResults.setText("Kết quả cho \"" + query + "\"");
         }
         tvResultCount.setText("(" + resultCount + ")");
     }
