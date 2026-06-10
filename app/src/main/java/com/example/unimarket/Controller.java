@@ -6,7 +6,6 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -29,7 +28,7 @@ public class Controller extends AppCompatActivity {
 	private android.view.View tabProfile;
 	// tab Posting
 	private View imageViewMenu;
-	private View fabChat;
+	private View imageViewChatInbox;
 
 	// ImageView
 	private ImageView ivTabHome;
@@ -92,7 +91,7 @@ public class Controller extends AppCompatActivity {
 
 		// FAB "+" giữa bottom bar
 		imageViewMenu = findViewById(R.id.imageViewMenu);
-		fabChat = findViewById(R.id.fabChat);
+		imageViewChatInbox = findViewById(R.id.imageViewChatInbox);
 
 		// Icon
 		ivTabHome    = findViewById(R.id.ivTabHome);
@@ -113,14 +112,8 @@ public class Controller extends AppCompatActivity {
 		tabOrders.setOnClickListener(v -> navigateTo(R.id.ordersFragment));
 		tabProfile.setOnClickListener(v -> navigateTo(R.id.profileFragment));
 		imageViewMenu.setOnClickListener(v -> navigateTo(R.id.postListingFragment));
-		fabChat.setOnClickListener(v -> showChatBox());
-	}
-
-	private void showChatBox() {
-		if (getSupportFragmentManager().findFragmentByTag("unimarket_chat") != null) {
-			return;
-		}
-		new ChatInboxBottomSheetFragment().show(getSupportFragmentManager(), "unimarket_chat");
+		imageViewChatInbox.setOnClickListener(v ->
+				new ChatInboxBottomSheetFragment().show(getSupportFragmentManager(), "controller_chat_inbox"));
 	}
 
 	private void navigateTo(int destinationId) {
@@ -138,17 +131,20 @@ public class Controller extends AppCompatActivity {
 
 	private void updateTabSelection(NavDestination destination) {
 		int destinationId = destination.getId();
-
-		// Hide bottom navigation for specific screens
 		View bottomNav = findViewById(R.id.bottomNavCard);
-		if (destinationId == R.id.postListingFragment) {
+
+		boolean fullScreen = destinationId == R.id.postListingFragment
+				|| destinationId == R.id.adminConsoleFragment;
+		boolean profile = destinationId == R.id.profileFragment;
+
+		if (fullScreen) {
 			bottomNav.setVisibility(View.GONE);
-			if (imageViewMenu != null) imageViewMenu.setVisibility(View.GONE);
-			if (fabChat != null) fabChat.setVisibility(View.GONE);
+			imageViewMenu.setVisibility(View.GONE);
+			imageViewChatInbox.setVisibility(View.GONE);
 		} else {
 			bottomNav.setVisibility(View.VISIBLE);
-			if (imageViewMenu != null) imageViewMenu.setVisibility(View.VISIBLE);
-			if (fabChat != null) fabChat.setVisibility(View.VISIBLE);
+			imageViewMenu.setVisibility(View.VISIBLE);
+			imageViewChatInbox.setVisibility(profile ? View.GONE : View.VISIBLE);
 		}
 
 		setTabSelected(ivTabHome, tvTabHome, destinationId == R.id.homeFragment);

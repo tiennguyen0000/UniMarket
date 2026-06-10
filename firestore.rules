@@ -1,0 +1,246 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    function hasProfile() {
+      return signedIn() && exists(/databases/$(database)/documents/profiles/$(uid()));
+    }
+
+    function currentProfile() {
+      return get(/databases/$(database)/documents/profiles/$(uid())).data;
+    }
+
+    function activeUser() {
+      return hasProfile()
+        && (!currentProfile().keys().hasAny(['account_status'])
+          || currentProfile().account_status == 'active');
+    }
+
+    function role() {
+      return hasProfile() && currentProfile().keys().hasAny(['role'])
+        ? currentProfile().role
+        : 'user';
+    }
+
+    function admin() {
+      return signedIn() && (
+        request.auth.token.role == 'admin'
+        || role() == 'admin'
+      );
+    }
+
+    function moderator() {
+      return signedIn()
+        && (admin() || request.auth.token.role == 'moderator' || role() == 'moderator');
+    }
+
+    function verifiedUser() {
+      return activeUser()
+        && currentProfile().keys().hasAny(['_verified'])
+        && currentProfile()._verified == true;
+    }
+
+    function canSell() {
+      return verifiedUser() || moderator();
+    }
+
+    function owner(userId) {
+      return signedIn() && uid() == userId;
+    }
+
+    function productVisible() {
+      return !resource.data.keys().hasAny(['status'])
+        || resource.data.status in ['active', 'AVAILABLE', 'available'];
+    }
+
+    function protectedProfileFieldsStable() {
+      return request.resource.data.id == resource.data.id
+        && (!request.resource.data.keys().hasAny(['role'])
+          || request.resource.data.role == resource.data.role
+          || (!resource.data.keys().hasAny(['role'])
+            && request.resource.data.role in [null, 'user']))
+        && (!request.resource.data.keys().hasAny(['account_status'])
+          || request.resource.data.account_status == resource.data.account_status
+          || (!resource.data.keys().hasAny(['account_status'])
+            && request.resource.data.account_status in [null, 'active']))
+        && (!request.resource.data.keys().hasAny(['_verified'])
+          || request.resource.data._verified == resource.data._verified
+          || (!resource.data.keys().hasAny(['_verified'])
+            && request.resource.data._verified == false));
+    }
+
+    function conversationMember(data) {
+      return signedIn() && (data.buyer_id == uid() || data.seller_id == uid());
+    }
+
+    function orderMember(data) {
+      return signedIn() && (data.buyer_id == uid() || data.seller_id == uid());
+    }
+
+    match /profiles/{profileId} {
+      allow get: if owner(profileId) || activeUser() || moderator();
+      allow list: if moderator();
+      allow create: if owner(profileId)
+        && request.resource.data.id == uid()
+        && (!request.resource.data.keys().hasAny(['role'])
+          || request.resource.data.role == 'user')
+        && (!request.resource.data.keys().hasAny(['account_status'])
+          || request.resource.data.account_status == 'active')
+        && (!request.resource.data.keys().hasAny(['_verified'])
+          || request.resource.data._verified == false)
+        && (!request.resource.data.keys().hasAny(['verified'])
+          || request.resource.data.verified == false);
+      allow update: if admin()
+        || (owner(profileId)
+          && protectedProfileFieldsStable());
+      allow delete: if admin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if admin();
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create: if canSell()
+        && request.resource.data.seller_id == uid()
+        && request.resource.data.status in ['active', 'pending'];
+      allow update: if moderator()
+        || (activeUser()
+          && resource.data.seller_id == uid()
+          && request.resource.data.seller_id == resource.data.seller_id);
+      allow delete: if moderator()
+        || (activeUser() && resource.data.seller_id == uid());
+    }
+
+    match /wishlist/{wishlistId} {
+      allow read, delete: if activeUser()
+        && resource.data.user_id == uid();
+      allow create, update: if activeUser()
+        && request.resource.data.user_id == uid();
+    }
+
+    match /carts/{cartId} {
+      allow read, delete: if activeUser()
+        && resource.data.user_id == uid();
+      allow create, update: if activeUser()
+        && request.resource.data.user_id == uid();
+    }
+
+    match /cart_items/{itemId} {
+      allow read: if activeUser()
+        && exists(/databases/$(database)/documents/carts/$(resource.data.cart_id))
+        && get(/databases/$(database)/documents/carts/$(resource.data.cart_id)).data.user_id == uid();
+      allow create, update: if activeUser()
+        && exists(/databases/$(database)/documents/carts/$(request.resource.data.cart_id))
+        && get(/databases/$(database)/documents/carts/$(request.resource.data.cart_id)).data.user_id == uid();
+      allow delete: if activeUser()
+        && exists(/databases/$(database)/documents/carts/$(resource.data.cart_id))
+        && get(/databases/$(database)/documents/carts/$(resource.data.cart_id)).data.user_id == uid();
+    }
+
+    match /orders/{orderId} {
+      allow read: if orderMember(resource.data) || moderator();
+      allow create: if activeUser()
+        && request.resource.data.buyer_id == uid()
+        && request.resource.data.seller_id != uid()
+        && request.resource.data.status == 'pending';
+      allow update: if moderator()
+        || (activeUser()
+          && resource.data.seller_id == uid()
+          && request.resource.data.seller_id == resource.data.seller_id
+          && request.resource.data.buyer_id == resource.data.buyer_id)
+        || (activeUser()
+          && resource.data.buyer_id == uid()
+          && resource.data.status == 'pending'
+          && request.resource.data.status == 'cancelled')
+        || (activeUser()
+          && resource.data.buyer_id == uid()
+          && resource.data.status == 'shipping'
+          && request.resource.data.status == 'done');
+      allow delete: if admin();
+    }
+
+    match /order_items/{itemId} {
+      allow read: if exists(/databases/$(database)/documents/orders/$(resource.data.order_id))
+        && (orderMember(get(/databases/$(database)/documents/orders/$(resource.data.order_id)).data) || moderator());
+      allow create: if activeUser()
+        && exists(/databases/$(database)/documents/orders/$(request.resource.data.order_id))
+        && get(/databases/$(database)/documents/orders/$(request.resource.data.order_id)).data.buyer_id == uid();
+      allow update, delete: if moderator();
+    }
+
+    match /conversations/{conversationId} {
+      allow read: if conversationMember(resource.data) || moderator();
+      allow create, update: if activeUser()
+        && conversationMember(request.resource.data)
+        && request.resource.data.buyer_id != request.resource.data.seller_id;
+      allow delete: if moderator();
+    }
+
+    match /messages/{messageId} {
+      allow read: if exists(/databases/$(database)/documents/conversations/$(resource.data.conversation_id))
+        && conversationMember(get(/databases/$(database)/documents/conversations/$(resource.data.conversation_id)).data);
+      allow create: if activeUser()
+        && request.resource.data.sender_id == uid()
+        && exists(/databases/$(database)/documents/conversations/$(request.resource.data.conversation_id))
+        && conversationMember(get(/databases/$(database)/documents/conversations/$(request.resource.data.conversation_id)).data);
+      allow update, delete: if moderator();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if activeUser() && resource.data.user_id == uid();
+      allow create, delete: if moderator();
+      allow update: if moderator()
+        || (activeUser()
+          && resource.data.user_id == uid()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['is_read']));
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if activeUser()
+        && request.resource.data.reviewer_id == uid()
+        && request.resource.data.seller_id != uid();
+      allow update, delete: if moderator()
+        || (activeUser() && resource.data.reviewer_id == uid());
+    }
+
+    match /reports/{reportId} {
+      allow create: if activeUser()
+        && request.resource.data.reporter_id == uid();
+      allow read: if moderator()
+        || (activeUser() && resource.data.reporter_id == uid());
+      allow update, delete: if moderator();
+    }
+
+    match /student_verifications/{verificationId} {
+      allow create: if activeUser()
+        && request.resource.data.user_id == uid()
+        && request.resource.data.status == 'pending';
+      allow read: if moderator()
+        || (activeUser() && resource.data.user_id == uid());
+      allow update, delete: if moderator();
+    }
+
+    match /user_behavior/{behaviorId} {
+      allow read, delete: if activeUser()
+        && resource.data.user_id == uid();
+      allow create, update: if activeUser()
+        && request.resource.data.user_id == uid();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

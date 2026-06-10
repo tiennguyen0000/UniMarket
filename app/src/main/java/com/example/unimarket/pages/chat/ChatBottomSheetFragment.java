@@ -124,7 +124,7 @@ public class ChatBottomSheetFragment extends BottomSheetDialogFragment {
         super.onViewCreated(view, savedInstanceState);
 
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-        String currentUserId = user != null ? user.getUid() : "guest_user";
+        String currentUserId = user != null ? user.getUid() : null;
         viewModel = new ViewModelProvider(this).get(ChatViewModel.class);
         adapter = new ChatMessageAdapter(currentUserId);
 

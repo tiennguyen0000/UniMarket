@@ -12,6 +12,9 @@ public class  Product implements Serializable {
     private String category_id;
     private String condition;
     private String status;
+    private String removed_by;
+    private String removed_at;
+    private String removal_reason;
     private List<String> image_urls;
     private String created_at;
     private String updated_at;
@@ -51,6 +54,12 @@ public class  Product implements Serializable {
     public void setCondition(String condition) { this.condition = condition; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+    public String getRemoved_by() { return removed_by; }
+    public void setRemoved_by(String removed_by) { this.removed_by = removed_by; }
+    public String getRemoved_at() { return removed_at; }
+    public void setRemoved_at(String removed_at) { this.removed_at = removed_at; }
+    public String getRemoval_reason() { return removal_reason; }
+    public void setRemoval_reason(String removal_reason) { this.removal_reason = removal_reason; }
     public List<String> getImage_urls() { return image_urls; }
     public void setImage_urls(List<String> image_urls) { this.image_urls = image_urls; }
     public String getCreated_at() { return created_at; }

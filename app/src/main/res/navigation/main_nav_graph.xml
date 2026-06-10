@@ -25,6 +25,11 @@
         android:label="Hồ sơ" />
 
     <fragment
+        android:id="@+id/adminConsoleFragment"
+        android:name="com.example.unimarket.pages.profile.AdminConsoleFragment"
+        android:label="Bảng quản trị" />
+
+    <fragment
         android:id="@+id/postListingFragment"
         android:name="com.example.unimarket.pages.post.PostListingFragment"
         android:label="Đăng tin" />

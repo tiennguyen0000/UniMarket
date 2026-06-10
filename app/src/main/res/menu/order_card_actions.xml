@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/actionViewProduct"
+        android:icon="@android:drawable/ic_menu_view"
+        android:title="Xem tin" />
+
+    <item
+        android:id="@+id/actionContact"
+        android:icon="@drawable/ic_chat_24"
+        android:title="Liên hệ" />
+</menu>

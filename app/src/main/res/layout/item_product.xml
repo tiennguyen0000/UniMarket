@@ -2,17 +2,17 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="282dp"
+    android:layout_height="298dp"
     android:background="@drawable/bg_item_product_card"
     android:clickable="true"
     android:elevation="3dp"
     android:foreground="?attr/selectableItemBackground"
     android:orientation="vertical"
-    android:padding="10dp">
+    android:padding="8dp">
 
     <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="112dp"
+        android:layout_height="138dp"
         android:background="@drawable/bg_item_product_media">
 
         <com.google.android.material.imageview.ShapeableImageView
@@ -33,19 +33,18 @@
             android:src="@drawable/ic_category_bag_24"
             app:tint="#21409A" />
 
-        <TextView
-            android:id="@+id/tvProductFavorite"
+        <ImageView
+            android:id="@+id/ivProductMenu"
             android:layout_width="34dp"
             android:layout_height="34dp"
             android:layout_gravity="top|end"
             android:layout_margin="8dp"
-            android:background="@drawable/bg_item_product_favorite"
-            android:elevation="4dp"
-            android:gravity="center"
-            android:includeFontPadding="false"
-            android:text="♡"
-            android:textColor="#98A2B3"
-            android:textSize="19sp" />
+            android:background="@android:color/transparent"
+            android:contentDescription="Tùy chọn tin đăng"
+            android:elevation="3dp"
+            android:padding="7dp"
+            android:src="@drawable/icons8_menu_vertical_50"
+            app:tint="#344054" />
 
         <com.google.android.material.imageview.ShapeableImageView
             android:id="@+id/ivSellerAvatar"
@@ -65,21 +64,21 @@
     <TextView
         android:id="@+id/tvProductCategory"
         android:layout_width="match_parent"
-        android:layout_height="22dp"
-        android:layout_marginTop="8dp"
+        android:layout_height="20dp"
+        android:layout_marginTop="10dp"
         android:ellipsize="end"
         android:gravity="bottom"
         android:includeFontPadding="false"
         android:maxLines="1"
         android:text="DANH MỤC"
         android:textColor="#7C8798"
-        android:textSize="10sp"
+        android:textSize="9sp"
         android:textStyle="bold" />
 
     <TextView
         android:id="@+id/tvProductName"
         android:layout_width="match_parent"
-        android:layout_height="38dp"
+        android:layout_height="36dp"
         android:layout_marginTop="3dp"
         android:ellipsize="end"
         android:includeFontPadding="false"
@@ -87,14 +86,14 @@
         android:maxLines="2"
         android:text="Tên sản phẩm"
         android:textColor="#111827"
-        android:textSize="15sp"
+        android:textSize="14sp"
         android:textStyle="bold" />
 
     <TextView
         android:id="@+id/tvProductMeta"
         android:layout_width="wrap_content"
-        android:layout_height="22dp"
-        android:layout_marginTop="6dp"
+        android:layout_height="21dp"
+        android:layout_marginTop="5dp"
         android:background="@drawable/bg_item_product_meta"
         android:ellipsize="end"
         android:gravity="center"
@@ -103,7 +102,7 @@
         android:paddingEnd="8dp"
         android:text="Tình trạng"
         android:textColor="#21409A"
-        android:textSize="10sp"
+        android:textSize="9sp"
         android:textStyle="bold" />
 
     <View
@@ -113,7 +112,7 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="40dp"
+        android:layout_height="38dp"
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
@@ -127,20 +126,20 @@
             android:maxLines="1"
             android:text="0đ"
             android:textColor="#0A2A7A"
-            android:textSize="15sp"
+            android:textSize="14sp"
             android:textStyle="bold" />
 
         <TextView
             android:id="@+id/tvAddProduct"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
             android:background="@drawable/bg_item_product_add_button"
             android:elevation="3dp"
             android:gravity="center"
             android:includeFontPadding="false"
             android:text="+"
             android:textColor="#FFFFFF"
-            android:textSize="25sp"
+            android:textSize="24sp"
             android:textStyle="bold" />
     </LinearLayout>
 </LinearLayout>

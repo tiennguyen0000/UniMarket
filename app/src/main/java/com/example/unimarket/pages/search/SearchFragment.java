@@ -19,20 +19,33 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.unimarket.R;
+import com.example.unimarket.auth.AccessControl;
 import com.example.unimarket.data.model.Category;
 import com.example.unimarket.data.model.Product;
 import com.example.unimarket.data.model.Review;
+import com.example.unimarket.data.model.Wishlist;
+import com.example.unimarket.data.service.ProductService;
 import com.example.unimarket.data.service.ReviewService;
+import com.example.unimarket.data.service.UserService;
+import com.example.unimarket.data.service.WishlistService;
+import com.example.unimarket.data.service.base.AsyncCrudService;
+import com.example.unimarket.pages.home.CartBottomSheetFragment;
+import com.example.unimarket.pages.home.CartFlow;
 import com.example.unimarket.pages.home.HomeViewModel;
 import com.example.unimarket.pages.home.ProductAdapter;
 import com.example.unimarket.pages.home.ProductDetailBottomSheetFragment;
 import com.example.unimarket.pages.post.PostListingFragment;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 public class SearchFragment extends Fragment {
 
@@ -45,26 +58,38 @@ public class SearchFragment extends Fragment {
     private TextView sortPriceLow;
     private TextView sortPriceHigh;
     private TextView sortRating;
+    private TextView sortSaved;
     private RecyclerView rvSearchProducts;
     private View layoutSearchLoading;
+    private View layoutSearchEmpty;
+    private TextView tvSearchEmptyTitle;
+    private TextView tvSearchEmptyMessage;
 
     private ProductAdapter productAdapter;
     private HomeViewModel homeViewModel;
     private final ReviewService reviewService = new ReviewService();
+    private final ProductService productService = new ProductService();
+    private final UserService userService = new UserService();
+    private final WishlistService wishlistService = new WishlistService();
 
     private final List<Product> productList = new ArrayList<>();
     private final List<Product> filteredProductList = new ArrayList<>();
-    private final Map<String, String> productImageById = new HashMap<>();
     private final Map<String, String> categoryNameById = new HashMap<>();
     private final Map<String, Double> productRatingById = new HashMap<>();
+    private final Set<String> savedProductIds = new HashSet<>();
     private String currentSort = "relevance";
 
     private double minPrice = 0;
     private double maxPrice = Double.MAX_VALUE;
     private boolean filterNew = false;
     private boolean filterUsed = false;
+    private boolean filterSavedOnly = false;
     private String initialCategoryName;
+    private String initialProductId;
+    private boolean openedInitialProduct;
     private boolean catalogLoading = true;
+    private boolean adminMode;
+    private String currentUserId;
 
     @Nullable
     @Override
@@ -85,6 +110,8 @@ public class SearchFragment extends Fragment {
         setupRefreshListener();
         setupObservers();
         highlightSelectedSort(sortRelevance);
+        loadAdminState();
+        loadWishlistState();
         loadReviewRatings();
         homeViewModel.loadCatalogData();
     }
@@ -96,12 +123,16 @@ public class SearchFragment extends Fragment {
         tvResultCount = root.findViewById(R.id.tvResultCount);
         rvSearchProducts = root.findViewById(R.id.rvSearchProducts);
         layoutSearchLoading = root.findViewById(R.id.layoutSearchLoading);
+        layoutSearchEmpty = root.findViewById(R.id.layoutSearchEmpty);
+        tvSearchEmptyTitle = root.findViewById(R.id.tvSearchEmptyTitle);
+        tvSearchEmptyMessage = root.findViewById(R.id.tvSearchEmptyMessage);
 
         sortRelevance = root.findViewById(R.id.sortRelevance);
         sortNewest = root.findViewById(R.id.sortNewest);
         sortPriceLow = root.findViewById(R.id.sortPriceLow);
         sortPriceHigh = root.findViewById(R.id.sortPriceHigh);
         sortRating = root.findViewById(R.id.sortRating);
+        sortSaved = root.findViewById(R.id.sortSaved);
     }
 
     private void setupRecyclerView() {
@@ -109,15 +140,61 @@ public class SearchFragment extends Fragment {
                 new ArrayList<>(),
                 new HashMap<>(),
                 product -> openProductDetail(product,
-                        productImageById.get(product.getId()),
+                        firstProductImage(product),
                         categoryNameById.get(product.getCategory_id())),
-                (product, imageUrl, categoryName) -> openProductDetail(product, imageUrl, categoryName)
+                (product, imageUrl, categoryName) -> openProductDetail(product, imageUrl, categoryName),
+                this::addProductToCart
         );
+        productAdapter.setFavoriteIds(savedProductIds);
+        productAdapter.setOnFavoriteChangedListener(this::handleFavoriteChanged);
         rvSearchProducts.setLayoutManager(new GridLayoutManager(requireContext(), 2));
         rvSearchProducts.setNestedScrollingEnabled(false);
         rvSearchProducts.setItemAnimator(null);
         rvSearchProducts.setAdapter(productAdapter);
-        rvSearchProducts.addItemDecoration(new GridSpacingItemDecoration(2, dpToPx(10), true));
+        rvSearchProducts.addItemDecoration(new GridSpacingItemDecoration(2, dpToPx(4), true));
+    }
+
+    private void loadAdminState() {
+        FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (firebaseUser == null) {
+            adminMode = false;
+            currentUserId = null;
+            productAdapter.setAdminModeration(false, null, null);
+            return;
+        }
+
+        currentUserId = firebaseUser.getUid();
+        userService.getProfileById(currentUserId, new AsyncCrudService.ItemCallback<com.example.unimarket.data.model.User>() {
+            @Override
+            public void onSuccess(com.example.unimarket.data.model.User data) {
+                adminMode = AccessControl.isModerator(data);
+                productAdapter.setAdminModeration(adminMode, currentUserId, SearchFragment.this::showAdminRemoveDialog);
+            }
+
+            @Override
+            public void onError(String error) {
+                adminMode = false;
+                productAdapter.setAdminModeration(false, currentUserId, null);
+            }
+        });
+    }
+
+    private void addProductToCart(Product product) {
+        new CartFlow().add(product, 1, new CartFlow.Callback() {
+            @Override
+            public void onSuccess() {
+                if (!isAdded()) {
+                    return;
+                }
+                CartBottomSheetFragment.newInstance()
+                        .show(requireActivity().getSupportFragmentManager(), "cart");
+            }
+
+            @Override
+            public void onError(String message) {
+                openProductDetail(product, firstProductImage(product), categoryNameById.get(product.getCategory_id()));
+            }
+        });
     }
 
     private void setupClicks() {
@@ -148,6 +225,7 @@ public class SearchFragment extends Fragment {
         sortPriceLow.setOnClickListener(v -> setSortOption("price_low", sortPriceLow));
         sortPriceHigh.setOnClickListener(v -> setSortOption("price_high", sortPriceHigh));
         sortRating.setOnClickListener(v -> setSortOption("rating", sortRating));
+        sortSaved.setOnClickListener(v -> toggleSavedOnly());
     }
 
     private void applyInitialCategoryArgument() {
@@ -156,6 +234,7 @@ public class SearchFragment extends Fragment {
             return;
         }
         initialCategoryName = args.getString("category_name");
+        initialProductId = args.getString("product_id");
         if (!TextUtils.isEmpty(initialCategoryName)) {
             etSearchQuery.setText(initialCategoryName);
             etSearchQuery.setSelection(etSearchQuery.getText().length());
@@ -181,7 +260,6 @@ public class SearchFragment extends Fragment {
 
             List<Category> categories = state.getCategories();
             List<Product> products = state.getProducts();
-            Map<String, String> images = state.getProductImages();
             catalogLoading = state.isLoading();
 
             rebuildCategoryMap(categories);
@@ -191,11 +269,6 @@ public class SearchFragment extends Fragment {
                 productList.addAll(products);
             }
 
-            productImageById.clear();
-            if (images != null) {
-                productImageById.putAll(images);
-            }
-            productAdapter.setProductImageMap(new HashMap<>(productImageById));
             productAdapter.setCategoryNameMap(new HashMap<>(categoryNameById));
 
             Map<String, String> avatars = state.getSellerAvatars();
@@ -256,6 +329,39 @@ public class SearchFragment extends Fragment {
         });
     }
 
+    private void loadWishlistState() {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) {
+            savedProductIds.clear();
+            productAdapter.setFavoriteIds(savedProductIds);
+            applySearchFiltersAndSort();
+            return;
+        }
+
+        wishlistService.getWithFilter("user_id", user.getUid(), new AsyncCrudService.ListCallback<Wishlist>() {
+            @Override
+            public void onSuccess(List<Wishlist> data) {
+                savedProductIds.clear();
+                if (data != null) {
+                    for (Wishlist item : data) {
+                        if (item != null && !TextUtils.isEmpty(item.getProduct_id())) {
+                            savedProductIds.add(item.getProduct_id());
+                        }
+                    }
+                }
+                productAdapter.setFavoriteIds(savedProductIds);
+                applySearchFiltersAndSort();
+            }
+
+            @Override
+            public void onError(String error) {
+                savedProductIds.clear();
+                productAdapter.setFavoriteIds(savedProductIds);
+                applySearchFiltersAndSort();
+            }
+        });
+    }
+
     private void applySearchFiltersAndSort() {
         String query = normalizedQuery();
         filteredProductList.clear();
@@ -265,6 +371,12 @@ public class SearchFragment extends Fragment {
                 continue;
             }
             if (!matchesQuery(product, query)) {
+                continue;
+            }
+            if (!isVisibleProduct(product)) {
+                continue;
+            }
+            if (filterSavedOnly && !savedProductIds.contains(product.getId())) {
                 continue;
             }
 
@@ -291,6 +403,75 @@ public class SearchFragment extends Fragment {
         }
 
         applySort();
+    }
+
+    private void toggleSavedOnly() {
+        filterSavedOnly = !filterSavedOnly;
+        updateSavedChipState();
+        applySearchFiltersAndSort();
+    }
+
+    private void handleFavoriteChanged(String productId, boolean saved) {
+        if (TextUtils.isEmpty(productId)) {
+            return;
+        }
+        if (saved) {
+            savedProductIds.add(productId);
+        } else {
+            savedProductIds.remove(productId);
+        }
+        if (filterSavedOnly) {
+            applySearchFiltersAndSort();
+        }
+    }
+
+    private boolean isVisibleProduct(Product product) {
+        String status = product.getStatus() != null
+                ? product.getStatus().trim().toLowerCase(Locale.ROOT)
+                : "active";
+        return !status.equals("removed") && !status.equals("inactive");
+    }
+
+    private void showAdminRemoveDialog(Product product) {
+        if (product == null || TextUtils.isEmpty(product.getId())) {
+            return;
+        }
+        String[] reasons = {
+                "Sai sự thật hoặc gây hiểu nhầm",
+                "Sản phẩm không liên quan đến IT",
+                "Sản phẩm bị cấm hoặc có rủi ro",
+                "Spam hoặc đăng trùng lặp",
+                "Vi phạm quy định cộng đồng"
+        };
+        final int[] selected = {0};
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Gỡ bài đăng")
+                .setSingleChoiceItems(reasons, selected[0], (dialog, which) -> selected[0] = which)
+                .setNegativeButton("Hủy", null)
+                .setPositiveButton("Gỡ bài", (dialog, which) -> removeProductAsAdmin(product, reasons[selected[0]]))
+                .show();
+    }
+
+    private void removeProductAsAdmin(Product product, String reason) {
+        product.setStatus("removed");
+        product.setRemoval_reason(reason);
+        product.setRemoved_by(currentUserId);
+        product.setRemoved_at(nowIsoUtc());
+        product.setUpdated_at(product.getRemoved_at());
+        productService.save(product, result -> {
+            if (!isAdded()) {
+                return;
+            }
+            if (result.isSuccess()) {
+                homeViewModel.loadCatalogData();
+            } else {
+                new MaterialAlertDialogBuilder(requireContext())
+                        .setTitle("Không thể gỡ bài")
+                        .setMessage(result.getError())
+                        .setPositiveButton("Đóng", null)
+                        .show();
+            }
+        });
     }
 
     private boolean matchesQuery(Product product, String query) {
@@ -335,6 +516,24 @@ public class SearchFragment extends Fragment {
         productAdapter.submitList(new ArrayList<>(sortedList));
         updateSearchSummary(sortedList.size());
         updateSearchLoading();
+        updateEmptyState(sortedList.size());
+        openInitialProductIfReady();
+    }
+
+    private void openInitialProductIfReady() {
+        if (openedInitialProduct || catalogLoading || TextUtils.isEmpty(initialProductId)) {
+            return;
+        }
+        for (Product product : productList) {
+            if (product != null && initialProductId.equals(product.getId()) && isVisibleProduct(product)) {
+                openedInitialProduct = true;
+                rvSearchProducts.post(() -> openProductDetail(
+                        product,
+                        firstProductImage(product),
+                        categoryNameById.get(product.getCategory_id())));
+                return;
+            }
+        }
     }
 
     private void updateSearchLoading() {
@@ -343,7 +542,39 @@ public class SearchFragment extends Fragment {
         }
         boolean showLoading = catalogLoading && productList.isEmpty();
         layoutSearchLoading.setVisibility(showLoading ? View.VISIBLE : View.GONE);
-        rvSearchProducts.setVisibility(showLoading ? View.GONE : View.VISIBLE);
+        if (showLoading) {
+            rvSearchProducts.setVisibility(View.GONE);
+            if (layoutSearchEmpty != null) layoutSearchEmpty.setVisibility(View.GONE);
+        }
+    }
+
+    private void updateEmptyState(int resultCount) {
+        if (layoutSearchEmpty == null || rvSearchProducts == null || layoutSearchLoading == null) {
+            return;
+        }
+        boolean showLoading = catalogLoading && productList.isEmpty();
+        boolean showEmpty = !showLoading && resultCount == 0;
+
+        rvSearchProducts.setVisibility(showEmpty || showLoading ? View.GONE : View.VISIBLE);
+        layoutSearchEmpty.setVisibility(showEmpty ? View.VISIBLE : View.GONE);
+
+        if (showEmpty) {
+            String query = etSearchQuery.getText() != null
+                    ? etSearchQuery.getText().toString().trim() : "";
+            if (filterSavedOnly && FirebaseAuth.getInstance().getCurrentUser() == null) {
+                tvSearchEmptyTitle.setText("Đăng nhập để xem tin đã lưu");
+                tvSearchEmptyMessage.setText("Bạn cần đăng nhập trước khi xem danh sách sản phẩm đã lưu.");
+            } else if (filterSavedOnly && savedProductIds.isEmpty()) {
+                tvSearchEmptyTitle.setText("Bạn chưa lưu tin nào");
+                tvSearchEmptyMessage.setText("Nhấn Lưu tin trong menu ba chấm để lưu lại sản phẩm muốn theo dõi.");
+            } else if (TextUtils.isEmpty(query) && productList.isEmpty()) {
+                tvSearchEmptyTitle.setText("Chưa có sản phẩm nào");
+                tvSearchEmptyMessage.setText("Khi người bán đăng tin mới, sản phẩm sẽ xuất hiện tại đây.");
+            } else {
+                tvSearchEmptyTitle.setText("Chưa tìm thấy sản phẩm");
+                tvSearchEmptyMessage.setText("Thử đổi từ khóa, bỏ bớt bộ lọc hoặc chọn cách sắp xếp khác.");
+            }
+        }
     }
 
     private void showFilterBottomSheet() {
@@ -352,7 +583,7 @@ public class SearchFragment extends Fragment {
         bottomSheet.setFilterListener(new SearchFilterBottomSheetFragment.FilterListener() {
             @Override
             public void onApplyFilter(double minPrice, double maxPrice, boolean filterNew,
-                                      boolean filterUsed, boolean filterFreeShip, boolean filterFastShip) {
+                                      boolean filterUsed) {
                 SearchFragment.this.minPrice = minPrice;
                 SearchFragment.this.maxPrice = maxPrice;
                 SearchFragment.this.filterNew = filterNew;
@@ -382,6 +613,7 @@ public class SearchFragment extends Fragment {
         resetSortButtons();
         selectedView.setBackgroundResource(R.drawable.bg_sort_chip_selected);
         selectedView.setTextColor(0xFFFFFFFF);
+        updateSavedChipState();
     }
 
     private void resetSortButtons() {
@@ -401,10 +633,22 @@ public class SearchFragment extends Fragment {
         sortRating.setTextColor(0xFF6B7280);
     }
 
+    private void updateSavedChipState() {
+        if (filterSavedOnly) {
+            sortSaved.setBackgroundResource(R.drawable.bg_sort_chip_selected);
+            sortSaved.setTextColor(0xFFFFFFFF);
+            return;
+        }
+        sortSaved.setBackgroundResource(R.drawable.bg_sort_chip);
+        sortSaved.setTextColor(0xFF6B7280);
+    }
+
     private void updateSearchSummary(int resultCount) {
         String query = etSearchQuery.getText() != null
                 ? etSearchQuery.getText().toString().trim() : "";
-        if (TextUtils.isEmpty(query)) {
+        if (filterSavedOnly) {
+            tvSearchResults.setText("Tin đã lưu");
+        } else if (TextUtils.isEmpty(query)) {
             tvSearchResults.setText("Tất cả sản phẩm");
         } else {
             tvSearchResults.setText("Kết quả cho \"" + query + "\"");
@@ -448,6 +692,20 @@ public class SearchFragment extends Fragment {
         ProductDetailBottomSheetFragment bottomSheet =
                 ProductDetailBottomSheetFragment.newInstance(product, imageUrl, categoryName);
         bottomSheet.show(getChildFragmentManager(), "product_detail");
+    }
+
+    private String firstProductImage(Product product) {
+        if (product == null || product.getImage_urls() == null || product.getImage_urls().isEmpty()) {
+            return null;
+        }
+        return product.getImage_urls().get(0);
+    }
+
+    private String nowIsoUtc() {
+        java.text.SimpleDateFormat format =
+                new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
+        format.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+        return format.format(new java.util.Date());
     }
 
     private int dpToPx(int dp) {

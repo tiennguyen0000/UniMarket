@@ -1,6 +1,7 @@
 package com.example.unimarket.pages.post;
 
 import android.net.Uri;
+import android.util.Log;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
@@ -10,7 +11,10 @@ import com.example.unimarket.data.model.Category;
 import com.example.unimarket.data.model.Product;
 import com.example.unimarket.data.service.CategoryService;
 import com.example.unimarket.data.service.ProductService;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageMetadata;
 import com.google.firebase.storage.StorageReference;
 
 import java.text.SimpleDateFormat;
@@ -25,6 +29,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class PostListingViewModel extends ViewModel {
+    private static final String TAG = "PostListingViewModel";
     private final ProductService productService = new ProductService();
     private final CategoryService categoryService = new CategoryService();
     private final FirebaseStorage storage = FirebaseStorage.getInstance();
@@ -46,7 +51,8 @@ public class PostListingViewModel extends ViewModel {
             if (result.isSuccess() && result.getData() != null && !result.getData().isEmpty()) {
                 categories.setValue(result.getData());
             } else {
-                categories.setValue(buildFallbackCategories());
+                categories.setValue(new ArrayList<>());
+                errorMessage.setValue("Không thể tải danh mục.");
             }
         });
     }
@@ -70,15 +76,32 @@ public class PostListingViewModel extends ViewModel {
     public void submitProduct(Product product) {
         isLoading.setValue(true);
         postSuccess.setValue(false);
+
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (currentUser == null) {
+            rejectSubmit("Vui lòng đăng nhập để đăng tin.");
+            return;
+        }
+
+        product.setSeller_id(currentUser.getUid());
         List<String> localUris = selectedImages.getValue();
         if (localUris == null || localUris.isEmpty()) {
             saveProductToFirestore(product);
         } else {
-            uploadImagesAndSave(product, new ArrayList<>(localUris));
+            uploadImagesAndSave(product, currentUser.getUid(), new ArrayList<>(localUris));
         }
     }
 
-    private void uploadImagesAndSave(Product product, List<String> localUris) {
+    private void rejectSubmit(String message) {
+        isLoading.setValue(false);
+        errorMessage.setValue(message);
+    }
+
+    private void uploadImagesAndSave(Product product, String ownerId, List<String> localUris) {
+        if (ownerId == null || ownerId.trim().isEmpty()) {
+            rejectSubmit("Không xác định được chủ tin đăng.");
+            return;
+        }
         List<String> downloadUrls = new ArrayList<>(Collections.nCopies(localUris.size(), null));
         AtomicInteger completedCount = new AtomicInteger(0);
         AtomicBoolean hasUploadFailure = new AtomicBoolean(false);
@@ -87,10 +110,13 @@ public class PostListingViewModel extends ViewModel {
             final int index = i;
             String uriString = localUris.get(i);
             Uri fileUri = Uri.parse(uriString);
-            String fileName = "products/" + UUID.randomUUID() + ".jpg";
+            String fileName = "products/" + ownerId + "/" + UUID.randomUUID() + ".jpg";
             StorageReference ref = storage.getReference().child(fileName);
+            StorageMetadata metadata = new StorageMetadata.Builder()
+                    .setContentType("image/jpeg")
+                    .build();
 
-            ref.putFile(fileUri).continueWithTask(task -> {
+            ref.putFile(fileUri, metadata).continueWithTask(task -> {
                 if (!task.isSuccessful()) throw task.getException();
                 return ref.getDownloadUrl();
             }).addOnCompleteListener(task -> {
@@ -98,6 +124,7 @@ public class PostListingViewModel extends ViewModel {
                     downloadUrls.set(index, task.getResult().toString());
                 } else {
                     hasUploadFailure.set(true);
+                    Log.e(TAG, "Image upload failed: " + uriString, task.getException());
                 }
 
                 if (completedCount.incrementAndGet() == localUris.size()) {
@@ -129,21 +156,6 @@ public class PostListingViewModel extends ViewModel {
                 errorMessage.setValue("Đăng tin thất bại: " + result.getError());
             }
         });
-    }
-
-    private List<Category> buildFallbackCategories() {
-        List<Category> fb = new ArrayList<>();
-        fb.add(new Category("cat_books", "Giáo trình & Sách", null));
-        fb.add(new Category("cat_stationery", "Dụng cụ học tập", null));
-        fb.add(new Category("cat_laptop", "Laptop & Máy tính", null));
-        fb.add(new Category("cat_phone", "Điện thoại & Máy tính bảng", null));
-        fb.add(new Category("cat_accessories", "Phụ kiện công nghệ", null));
-        fb.add(new Category("cat_dorm", "Đồ dùng phòng trọ", null));
-        fb.add(new Category("cat_fashion", "Thời trang sinh viên", null));
-        fb.add(new Category("cat_sport", "Thể thao & Giải trí", null));
-        fb.add(new Category("cat_transport", "Phương tiện di chuyển", null));
-        fb.add(new Category("cat_free", "Góc 0 đồng / Cho tặng", null));
-        return fb;
     }
 
     private String nowIsoUtc() {

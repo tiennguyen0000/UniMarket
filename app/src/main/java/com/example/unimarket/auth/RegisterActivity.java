@@ -84,7 +84,6 @@ public class RegisterActivity extends AppCompatActivity {
         if (webClientIdRes != 0) {
             gsoBuilder.requestIdToken(getString(webClientIdRes));
         }
-
         GoogleSignInOptions gso = gsoBuilder.build();
         googleSignInClient = GoogleSignIn.getClient(this, gso);
     }
@@ -132,6 +131,7 @@ public class RegisterActivity extends AppCompatActivity {
                         User newUser = new User();
                         newUser.setId(firebaseUser.getUid());
                         newUser.setFull_name(fullName);
+                        applyDefaultAccessFields(newUser);
 
                         new UserService().upsertProfile(newUser, new AsyncCrudService.ItemCallback<User>() {
                             @Override
@@ -227,7 +227,7 @@ public class RegisterActivity extends AppCompatActivity {
                 if (idToken == null) {
                     setLoading(false);
                     Toast.makeText(this,
-                            "Không lấy được token Google. Hãy kiểm tra SHA-1 trong Firebase Console.",
+                            "Không lấy được token Google. Cập nhật SHA-1/SHA-256 trong Firebase rồi tải lại google-services.json.",
                             Toast.LENGTH_LONG).show();
                     return;
                 }
@@ -236,7 +236,7 @@ public class RegisterActivity extends AppCompatActivity {
                 setLoading(false);
                 String msg = "Google Sign-In thất bại (mã lỗi: " + e.getStatusCode() + ")";
                 if (e.getStatusCode() == 10) {
-                    msg = "Cấu hình Google Sign-In chưa đúng. Kiểm tra SHA-1 trong Firebase Console.";
+                    msg = "Google Sign-In thiếu OAuth client cho app này. Cập nhật SHA-1/SHA-256 trong Firebase rồi tải lại google-services.json.";
                 }
                 Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
             }
@@ -263,25 +263,49 @@ public class RegisterActivity extends AppCompatActivity {
     }
 
     private void syncGoogleProfileAndNavigate(FirebaseUser firebaseUser) {
-        User profile = new User();
-        profile.setId(firebaseUser.getUid());
-        profile.setFull_name(firebaseUser.getDisplayName());
-        profile.setAvatar_url(
-                firebaseUser.getPhotoUrl() != null ? firebaseUser.getPhotoUrl().toString() : null);
-
-        new UserService().upsertProfile(profile, new AsyncCrudService.ItemCallback<User>() {
+        UserService userService = new UserService();
+        userService.getProfileById(firebaseUser.getUid(), new AsyncCrudService.ItemCallback<User>() {
             @Override
             public void onSuccess(User data) {
-                setLoading(false);
-                navigateToMain();
+                User profile = data != null ? data : new User();
+                profile.setId(firebaseUser.getUid());
+                profile.setFull_name(firebaseUser.getDisplayName());
+                profile.setAvatar_url(
+                        firebaseUser.getPhotoUrl() != null ? firebaseUser.getPhotoUrl().toString() : null);
+                if (data == null) {
+                    applyDefaultAccessFields(profile);
+                }
+                userService.upsertProfile(profile, new AsyncCrudService.ItemCallback<User>() {
+                    @Override
+                    public void onSuccess(User saved) {
+                        setLoading(false);
+                        navigateToMain();
+                    }
+
+                    @Override
+                    public void onError(String error) {
+                        setLoading(false);
+                        Toast.makeText(RegisterActivity.this,
+                                "Không thể đồng bộ hồ sơ: " + error,
+                                Toast.LENGTH_LONG).show();
+                    }
+                });
             }
 
             @Override
             public void onError(String error) {
                 setLoading(false);
-                navigateToMain();
+                Toast.makeText(RegisterActivity.this,
+                        "Không thể tải hồ sơ: " + error,
+                        Toast.LENGTH_LONG).show();
             }
         });
+    }
+
+    private void applyDefaultAccessFields(User user) {
+        user.setRole(AccessControl.ROLE_USER);
+        user.setAccount_status(AccessControl.STATUS_ACTIVE);
+        user.setVerified(false);
     }
 
     private void navigateToMain() {

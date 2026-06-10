@@ -12,6 +12,10 @@ public class OrderService extends BaseCrudService<Order> {
         AsyncCrudService.getWithFilter(getTableName(), "buyer_id", buyerId, getModelClass(), callback);
     }
 
+    public void getOrdersBySellerId(String sellerId, AsyncCrudService.ListCallback<Order> callback) {
+        AsyncCrudService.getWithFilter(getTableName(), "seller_id", sellerId, getModelClass(), callback);
+    }
+
     @Override
     public String getId(Order item) {
         return item != null ? item.getId() : null;

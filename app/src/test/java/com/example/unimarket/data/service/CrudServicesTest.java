@@ -11,7 +11,6 @@ import com.example.unimarket.data.model.Message;
 import com.example.unimarket.data.model.Notification;
 import com.example.unimarket.data.model.Order;
 import com.example.unimarket.data.model.Product;
-import com.example.unimarket.data.model.ProductImage;
 import com.example.unimarket.data.model.Report;
 import com.example.unimarket.data.model.Review;
 import com.example.unimarket.data.model.StudentVerification;
@@ -38,7 +37,6 @@ public class CrudServicesTest {
                 new Case(new MessageService(), Message.class),
                 new Case(new NotificationService(), Notification.class),
                 new Case(new OrderService(), Order.class),
-                new Case(new ProductImageService(), ProductImage.class),
                 new Case(new ReportService(), Report.class),
                 new Case(new ReviewService(), Review.class),
                 new Case(new StudentVerificationService(), StudentVerification.class),

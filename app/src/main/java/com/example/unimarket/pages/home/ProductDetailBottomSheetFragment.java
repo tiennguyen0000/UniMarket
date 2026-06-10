@@ -22,16 +22,14 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.example.unimarket.R;
-import com.example.unimarket.data.model.Cart;
-import com.example.unimarket.data.model.CartItem;
+import com.example.unimarket.data.model.Notification;
 import com.example.unimarket.data.model.Order;
 import com.example.unimarket.data.model.OrderItem;
 import com.example.unimarket.data.model.Product;
 import com.example.unimarket.data.model.Review;
 import com.example.unimarket.data.model.User;
 import com.example.unimarket.data.model.Wishlist;
-import com.example.unimarket.data.service.CartItemService;
-import com.example.unimarket.data.service.CartService;
+import com.example.unimarket.data.service.NotificationService;
 import com.example.unimarket.data.service.OrderItemService;
 import com.example.unimarket.data.service.OrderService;
 import com.example.unimarket.data.service.ReviewService;
@@ -91,8 +89,7 @@ public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment 
     private final ReviewService reviewService = new ReviewService();
     private final OrderService orderService = new OrderService();
     private final OrderItemService orderItemService = new OrderItemService();
-    private final CartService cartService = new CartService();
-    private final CartItemService cartItemService = new CartItemService();
+    private final NotificationService notificationService = new NotificationService();
     private final WishlistService wishlistService = new WishlistService();
 
     public static ProductDetailBottomSheetFragment newInstance(Product product, String imageUrl, String categoryName) {
@@ -412,6 +409,43 @@ public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment 
             return;
         }
 
+        setReviewSubmitting(true);
+        orderService.getOrdersByBuyerId(user.getUid(), new AsyncCrudService.ListCallback<Order>() {
+            @Override
+            public void onSuccess(List<Order> data) {
+                if (!isAdded()) return;
+                if (hasCompletedOrder(data)) {
+                    saveReview(user, content);
+                } else {
+                    setReviewSubmitting(false);
+                    showReviewStatus("Bạn chỉ có thể đánh giá sau khi đơn hàng hoàn thành.", true);
+                }
+            }
+
+            @Override
+            public void onError(String error) {
+                if (!isAdded()) return;
+                setReviewSubmitting(false);
+                showReviewStatus("Không thể kiểm tra đơn hàng: " + error, true);
+            }
+        });
+    }
+
+    private boolean hasCompletedOrder(List<Order> orders) {
+        if (orders == null || product == null) {
+            return false;
+        }
+        for (Order order : orders) {
+            if (order != null
+                    && product.getId().equals(order.getProduct_id())
+                    && "done".equalsIgnoreCase(order.getStatus())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void saveReview(FirebaseUser user, String content) {
         Review review = new Review();
         review.setId(stableDocId("review", product.getId(), user.getUid()));
         review.setProduct_id(product.getId());
@@ -425,7 +459,6 @@ public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment 
         review.setCreated_at_timestamp(System.currentTimeMillis());
         review.setHelpful_count(0);
 
-        setReviewSubmitting(true);
         reviewService.save(review, result -> {
             if (!isAdded()) return;
             setReviewSubmitting(false);
@@ -590,7 +623,6 @@ public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment 
                     currentWishlist = null;
                     updateFavoriteUi(false);
                     setFavoriteLoading(false);
-                    Toast.makeText(requireContext(), "Đã bỏ lưu sản phẩm", Toast.LENGTH_SHORT).show();
                 }
 
                 @Override
@@ -614,7 +646,6 @@ public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment 
             if (result.isSuccess()) {
                 currentWishlist = result.getData();
                 updateFavoriteUi(true);
-                Toast.makeText(requireContext(), "Đã lưu sản phẩm", Toast.LENGTH_SHORT).show();
             } else {
                 Toast.makeText(requireContext(), "Lưu thất bại: " + result.getError(), Toast.LENGTH_SHORT).show();
             }
@@ -632,99 +663,23 @@ public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment 
         }
 
         setActionLoading(btnAddToCart, tvAddToCartLabel, true, "Đang thêm...");
-        getOrCreateCart(user.getUid(), new CartCallback() {
+        new CartFlow().add(product, quantity, new CartFlow.Callback() {
             @Override
-            public void onSuccess(Cart cart) {
-                saveCartItem(cart, quantity);
+            public void onSuccess() {
+                if (!isAdded()) return;
+                setActionLoading(btnAddToCart, tvAddToCartLabel, false, "Thêm vào giỏ");
+                dismiss();
+                CartBottomSheetFragment.newInstance()
+                        .show(requireActivity().getSupportFragmentManager(), "cart");
             }
 
             @Override
             public void onError(String error) {
                 if (!isAdded()) return;
                 setActionLoading(btnAddToCart, tvAddToCartLabel, false, "Thêm vào giỏ");
-                Toast.makeText(requireContext(), "Không thể tạo giỏ hàng: " + error, Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), error, Toast.LENGTH_SHORT).show();
             }
         });
-    }
-
-    private void getOrCreateCart(String userId, CartCallback callback) {
-        cartService.getWithFilter("user_id", userId, new AsyncCrudService.ListCallback<Cart>() {
-            @Override
-            public void onSuccess(List<Cart> data) {
-                if (data != null && !data.isEmpty()) {
-                    callback.onSuccess(data.get(0));
-                    return;
-                }
-
-                Cart cart = new Cart();
-                cart.setId(stableDocId("cart", userId));
-                cart.setUser_id(userId);
-                cart.setCreated_at(nowIsoUtc());
-                cartService.save(cart, result -> {
-                    if (result.isSuccess() && result.getData() != null) {
-                        callback.onSuccess(result.getData());
-                    } else {
-                        callback.onError(result.getError());
-                    }
-                });
-            }
-
-            @Override
-            public void onError(String error) {
-                callback.onError(error);
-            }
-        });
-    }
-
-    private void saveCartItem(Cart cart, int addedQuantity) {
-        if (cart == null || TextUtils.isEmpty(cart.getId()) || product == null) {
-            setActionLoading(btnAddToCart, tvAddToCartLabel, false, "Thêm vào giỏ");
-            Toast.makeText(requireContext(), "Không thể thêm sản phẩm vào giỏ", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        cartItemService.getCartItemsByCartId(cart.getId(), new AsyncCrudService.ListCallback<CartItem>() {
-            @Override
-            public void onSuccess(List<CartItem> data) {
-                CartItem item = findCartItemForProduct(data);
-                int existingQuantity = item != null && item.getQuantity() != null ? item.getQuantity() : 0;
-                if (item == null) {
-                    item = new CartItem();
-                    item.setId(stableDocId("cart_item", cart.getId(), product.getId()));
-                    item.setCart_id(cart.getId());
-                    item.setProduct_id(product.getId());
-                }
-                item.setQuantity(existingQuantity + addedQuantity);
-                cartItemService.save(item, result -> {
-                    if (!isAdded()) return;
-                    setActionLoading(btnAddToCart, tvAddToCartLabel, false, "Thêm vào giỏ");
-                    if (result.isSuccess()) {
-                        Toast.makeText(requireContext(), "Đã thêm vào giỏ hàng", Toast.LENGTH_SHORT).show();
-                    } else {
-                        Toast.makeText(requireContext(), "Thêm giỏ hàng thất bại: " + result.getError(), Toast.LENGTH_SHORT).show();
-                    }
-                });
-            }
-
-            @Override
-            public void onError(String error) {
-                if (!isAdded()) return;
-                setActionLoading(btnAddToCart, tvAddToCartLabel, false, "Thêm vào giỏ");
-                Toast.makeText(requireContext(), "Không thể đọc giỏ hàng: " + error, Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    private CartItem findCartItemForProduct(List<CartItem> data) {
-        if (data == null || product == null) {
-            return null;
-        }
-        for (CartItem item : data) {
-            if (item != null && product.getId().equals(item.getProduct_id())) {
-                return item;
-            }
-        }
-        return null;
     }
 
     private void buyNow() {
@@ -785,10 +740,37 @@ public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment 
             if (!isAdded()) return;
             setActionLoading(btnBuyNow, tvBuyNowLabel, false, "Mua ngay");
             if (!result.isSuccess()) {
-                Toast.makeText(requireContext(), "Đơn đã tạo, nhưng chi tiết đơn chưa đồng bộ: " + result.getError(), Toast.LENGTH_LONG).show();
+                orderService.deleteById(order.getId(), new AsyncCrudService.BooleanCallback() {
+                    @Override public void onSuccess(boolean success) {}
+                    @Override public void onError(String error) {}
+                });
+                Toast.makeText(requireContext(), "Không thể tạo đơn hàng: " + result.getError(), Toast.LENGTH_SHORT).show();
+                return;
             }
+            notifySellerNewOrder(order);
             showOrderSuccessDialog(order);
         });
+    }
+
+    private void notifySellerNewOrder(Order order) {
+        if (order == null || TextUtils.isEmpty(order.getSeller_id()) || TextUtils.isEmpty(order.getId())) {
+            return;
+        }
+        FirebaseUser buyer = FirebaseAuth.getInstance().getCurrentUser();
+        if (buyer != null && order.getSeller_id().equals(buyer.getUid())) {
+            return;
+        }
+
+        Notification notification = new Notification();
+        notification.setId(stableDocId("notif", order.getSeller_id(), order.getId(), "new_order"));
+        notification.setUser_id(order.getSeller_id());
+        notification.setTitle("Có đơn hàng mới");
+        notification.setContent("Người mua vừa đặt \"" + safeTitle(order) + "\". Vào Đơn hàng để xác nhận.");
+        notification.setType("order");
+        notification.setTarget_id(order.getId());
+        notification.setIs_read(false);
+        notification.setCreated_at(nowIsoUtc());
+        notificationService.save(notification, ignored -> {});
     }
 
     private void showOrderSuccessDialog(Order order) {
@@ -922,11 +904,7 @@ public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment 
 
     private void navigateToOrders() {
         dismissAllowingStateLoss();
-        try {
-            Navigation.findNavController(requireActivity(), R.id.controllerNavHost).navigate(R.id.ordersFragment);
-        } catch (Exception ignored) {
-            // The order is already persisted; navigation is a convenience only.
-        }
+        Navigation.findNavController(requireActivity(), R.id.controllerNavHost).navigate(R.id.ordersFragment);
     }
 
     private String statusLabel(String status) {
@@ -955,6 +933,12 @@ public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment 
         return null;
     }
 
+    private String safeTitle(Order order) {
+        return order != null && !TextUtils.isEmpty(order.getProduct_title())
+                ? order.getProduct_title()
+                : "sản phẩm";
+    }
+
     private String nowIsoUtc() {
         SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
         format.setTimeZone(TimeZone.getTimeZone("UTC"));
@@ -976,8 +960,4 @@ public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment 
         return Math.round(dp * getResources().getDisplayMetrics().density);
     }
 
-    private interface CartCallback {
-        void onSuccess(Cart cart);
-        void onError(String error);
-    }
 }

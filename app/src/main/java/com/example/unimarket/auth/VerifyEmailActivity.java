@@ -13,9 +13,6 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.unimarket.R;
 import com.example.unimarket.MainActivity;
-import com.example.unimarket.data.model.User;
-import com.example.unimarket.data.service.UserService;
-import com.example.unimarket.data.service.base.AsyncCrudService;
 import com.google.android.material.button.MaterialButton;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -97,27 +94,8 @@ public class VerifyEmailActivity extends AppCompatActivity {
         user.reload().addOnCompleteListener(task -> {
             FirebaseUser refreshedUser = mAuth.getCurrentUser();
             if (refreshedUser != null && refreshedUser.isEmailVerified()) {
-                // Đồng bộ trạng thái verified vào Firestore profile
-                User updatedProfile = new User();
-                updatedProfile.setId(refreshedUser.getUid());
-                updatedProfile.setIs_verified(true);
-
-                new UserService().upsertProfile(updatedProfile, new AsyncCrudService.ItemCallback<User>() {
-                    @Override
-                    public void onSuccess(User data) {
-                        setLoading(false);
-                        Toast.makeText(VerifyEmailActivity.this, "Xác thực thành công!", Toast.LENGTH_SHORT).show();
-                        navigateToMain();
-                    }
-
-                    @Override
-                    public void onError(String error) {
-                        // Không block navigation nếu sync profile thất bại
-                        setLoading(false);
-                        Toast.makeText(VerifyEmailActivity.this, "Xác thực thành công!", Toast.LENGTH_SHORT).show();
-                        navigateToMain();
-                    }
-                });
+                setLoading(false);
+                navigateToMain();
             } else {
                 setLoading(false);
                 Toast.makeText(this,
@@ -144,7 +122,6 @@ public class VerifyEmailActivity extends AppCompatActivity {
                 .addOnCompleteListener(task -> {
                     setLoading(false);
                     if (task.isSuccessful()) {
-                        Toast.makeText(this, "Email xác thực đã được gửi lại!", Toast.LENGTH_SHORT).show();
                         startResendCooldown();
                     } else {
                         Toast.makeText(this, "Gửi email thất bại, vui lòng thử lại sau.", Toast.LENGTH_SHORT).show();

@@ -19,11 +19,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.unimarket.R;
 import com.example.unimarket.data.model.Notification;
-import com.example.unimarket.data.model.Order;
-import com.example.unimarket.data.model.Product;
 import com.example.unimarket.data.service.NotificationService;
-import com.example.unimarket.data.service.OrderService;
-import com.example.unimarket.data.service.ProductService;
 import com.example.unimarket.data.service.base.AsyncCrudService;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 import com.google.firebase.auth.FirebaseAuth;
@@ -32,7 +28,6 @@ import com.google.firebase.auth.FirebaseUser;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
@@ -40,8 +35,6 @@ public class NotificationBottomSheetFragment extends BottomSheetDialogFragment {
     public static final String RESULT_NOTIFICATIONS_CHANGED = "notifications_changed";
 
     private final NotificationService notificationService = new NotificationService();
-    private final OrderService orderService = new OrderService();
-    private final ProductService productService = new ProductService();
 
     private TextView tvNotificationSubtitle;
     private TextView btnMarkAllRead;
@@ -53,7 +46,6 @@ public class NotificationBottomSheetFragment extends BottomSheetDialogFragment {
 
     private final List<Notification> notifications = new ArrayList<>();
     private String currentUserId;
-    private boolean seededDuringThisOpen;
 
     @Nullable
     @Override
@@ -105,10 +97,10 @@ public class NotificationBottomSheetFragment extends BottomSheetDialogFragment {
             return;
         }
 
-        loadNotifications(true);
+        loadNotifications();
     }
 
-    private void loadNotifications(boolean allowSeed) {
+    private void loadNotifications() {
         showLoading();
         notificationService.getNotificationsByUserId(currentUserId, new AsyncCrudService.ListCallback<Notification>() {
             @Override
@@ -118,11 +110,6 @@ public class NotificationBottomSheetFragment extends BottomSheetDialogFragment {
                 }
                 List<Notification> loaded = data != null ? data : new ArrayList<>();
                 sortNotifications(loaded);
-                if (loaded.isEmpty() && allowSeed && !seededDuringThisOpen) {
-                    seededDuringThisOpen = true;
-                    seedStarterNotifications();
-                    return;
-                }
                 bindNotifications(loaded);
             }
 
@@ -163,7 +150,8 @@ public class NotificationBottomSheetFragment extends BottomSheetDialogFragment {
 
         if (!notification.isRead()) {
             notification.setIs_read(true);
-            notificationService.save(notification, result -> notifyHomeBadgeChanged(countUnread(notifications)));
+            notifyHomeBadgeChanged(countUnread(notifications));
+            notificationService.save(notification, result -> {});
             adapter.notifyDataSetChanged();
             updateSubtitleOnly();
         }
@@ -174,15 +162,16 @@ public class NotificationBottomSheetFragment extends BottomSheetDialogFragment {
     private void openNotificationTarget(Notification notification) {
         String type = notification.getType() != null
                 ? notification.getType().toLowerCase(Locale.ROOT) : "";
-        if (!isAdded()) {
+        androidx.fragment.app.Fragment parent = getParentFragment();
+        if (!isAdded() || parent == null) {
             return;
         }
         if (type.contains("order") || type.contains("review")) {
             dismiss();
-            NavHostFragment.findNavController(requireParentFragment()).navigate(R.id.ordersFragment);
+            NavHostFragment.findNavController(parent).navigate(R.id.ordersFragment);
         } else if (type.contains("product") || type.contains("price") || type.contains("listing")) {
             dismiss();
-            NavHostFragment.findNavController(requireParentFragment()).navigate(R.id.searchFragment);
+            NavHostFragment.findNavController(parent).navigate(R.id.searchFragment);
         }
     }
 
@@ -195,14 +184,8 @@ public class NotificationBottomSheetFragment extends BottomSheetDialogFragment {
             }
         }
         if (!changedNotifications.isEmpty()) {
-            final int[] pendingWrites = {changedNotifications.size()};
             for (Notification notification : changedNotifications) {
-                notificationService.save(notification, result -> {
-                    pendingWrites[0]--;
-                    if (pendingWrites[0] <= 0) {
-                        notifyHomeBadgeChanged(0);
-                    }
-                });
+                notificationService.save(notification, result -> {});
             }
             adapter.notifyDataSetChanged();
             updateSubtitleOnly();
@@ -216,126 +199,6 @@ public class NotificationBottomSheetFragment extends BottomSheetDialogFragment {
         tvNotificationSubtitle.setText(unreadCount > 0
                 ? unreadCount + " thông báo chưa đọc"
                 : "Bạn đã đọc hết thông báo");
-    }
-
-    private void seedStarterNotifications() {
-        List<Notification> starter = new ArrayList<>();
-        starter.add(new Notification(
-                buildNotificationId("welcome"),
-                currentUserId,
-                "Chào mừng bạn quay lại UniMarket",
-                "Theo dõi đơn hàng, tin đăng và phản hồi từ người mua ngay tại mục thông báo.",
-                "system",
-                null,
-                false,
-                Instant.now().minusSeconds(30 * 60L).toString()
-        ));
-
-        orderService.getOrdersByBuyerId(currentUserId, new AsyncCrudService.ListCallback<Order>() {
-            @Override
-            public void onSuccess(List<Order> orders) {
-                if (orders != null && !orders.isEmpty()) {
-                    Order order = orders.get(0);
-                    starter.add(buildOrderNotification(order));
-                }
-                addProductHintAndSave(starter);
-            }
-
-            @Override
-            public void onError(String error) {
-                addProductHintAndSave(starter);
-            }
-        });
-    }
-
-    private void addProductHintAndSave(List<Notification> starter) {
-        productService.getAll(new AsyncCrudService.ListCallback<Product>() {
-            @Override
-            public void onSuccess(List<Product> products) {
-                Product product = firstAvailableProduct(products);
-                if (product != null) {
-                    starter.add(new Notification(
-                            buildNotificationId("product_hint"),
-                            currentUserId,
-                            "Có món đồ phù hợp quanh campus",
-                            safeProductTitle(product) + " đang được nhiều sinh viên quan tâm. Mở Tìm kiếm để xem thêm.",
-                            "product",
-                            product.getId(),
-                            false,
-                            Instant.now().minusSeconds(3 * 60 * 60L).toString()
-                    ));
-                }
-                saveStarterNotifications(starter);
-            }
-
-            @Override
-            public void onError(String error) {
-                saveStarterNotifications(starter);
-            }
-        });
-    }
-
-    private void saveStarterNotifications(List<Notification> starter) {
-        if (starter == null || starter.isEmpty()) {
-            bindNotifications(new ArrayList<>());
-            return;
-        }
-        final int[] pending = {starter.size()};
-        for (Notification notification : starter) {
-            notificationService.save(notification, result -> {
-                pending[0]--;
-                if (pending[0] <= 0 && isAdded()) {
-                    loadNotifications(false);
-                    notifyHomeBadgeChanged(countUnread(starter));
-                }
-            });
-        }
-    }
-
-    private Notification buildOrderNotification(Order order) {
-        String orderId = order != null && !TextUtils.isEmpty(order.getId()) ? order.getId() : "order";
-        String status = order != null ? order.getStatus() : null;
-        String title;
-        String body;
-        if ("confirmed".equalsIgnoreCase(status) || "shipping".equalsIgnoreCase(status)) {
-            title = "Đơn hàng của bạn đã được xác nhận";
-            body = "Đơn hàng #" + shortId(orderId) + " đang được người bán chuẩn bị.";
-        } else if ("done".equalsIgnoreCase(status)) {
-            title = "Đánh giá sản phẩm ngay";
-            body = "Đơn hàng #" + shortId(orderId) + " đã hoàn tất. Hãy chia sẻ trải nghiệm của bạn.";
-        } else {
-            title = "Đơn hàng đang chờ xử lý";
-            body = "Đơn hàng #" + shortId(orderId) + " đã được ghi nhận trên UniMarket.";
-        }
-        return new Notification(
-                buildNotificationId("order_" + orderId),
-                currentUserId,
-                title,
-                body,
-                "order",
-                orderId,
-                false,
-                Instant.now().minusSeconds(90 * 60L).toString()
-        );
-    }
-
-    private Product firstAvailableProduct(List<Product> products) {
-        if (products == null) {
-            return null;
-        }
-        for (Product product : products) {
-            if (product != null && !TextUtils.isEmpty(product.getTitle())) {
-                return product;
-            }
-        }
-        return null;
-    }
-
-    private String safeProductTitle(Product product) {
-        if (product == null || TextUtils.isEmpty(product.getTitle())) {
-            return "Một sản phẩm mới";
-        }
-        return product.getTitle();
     }
 
     private void showLoading() {
@@ -358,11 +221,12 @@ public class NotificationBottomSheetFragment extends BottomSheetDialogFragment {
     }
 
     private void notifyHomeBadgeChanged(int unreadCount) {
-        if (getParentFragmentManager() != null) {
-            Bundle result = new Bundle();
-            result.putInt("unread_count", Math.max(0, unreadCount));
-            getParentFragmentManager().setFragmentResult(RESULT_NOTIFICATIONS_CHANGED, result);
+        if (!isAdded()) {
+            return;
         }
+        Bundle result = new Bundle();
+        result.putInt("unread_count", Math.max(0, unreadCount));
+        getParentFragmentManager().setFragmentResult(RESULT_NOTIFICATIONS_CHANGED, result);
     }
 
     private void sortNotifications(List<Notification> list) {
@@ -393,18 +257,5 @@ public class NotificationBottomSheetFragment extends BottomSheetDialogFragment {
             }
         }
         return count;
-    }
-
-    private String buildNotificationId(String suffix) {
-        String safeUser = currentUserId != null ? currentUserId.replaceAll("[^A-Za-z0-9_-]", "") : "guest";
-        String safeSuffix = suffix != null ? suffix.replaceAll("[^A-Za-z0-9_-]", "") : "system";
-        return "notif_" + safeUser + "_" + safeSuffix;
-    }
-
-    private String shortId(String id) {
-        if (TextUtils.isEmpty(id)) {
-            return "----";
-        }
-        return id.length() <= 6 ? id : id.substring(0, 6);
     }
 }

@@ -83,7 +83,7 @@ public class LoginActivity extends AppCompatActivity {
 
         // Email/password: chỉ vào app nếu đã xác thực email
         if (currentUser.isEmailVerified()) {
-            navigateToMain();
+            syncEmailProfileAndNavigate(currentUser);
         }
     }
 
@@ -92,23 +92,42 @@ public class LoginActivity extends AppCompatActivity {
      * Gọi trong onStart (mở lại app) lẫn sau khi signIn mới.
      */
     private void syncGoogleProfileAndNavigate(FirebaseUser firebaseUser) {
-        User profile = new User();
-        profile.setId(firebaseUser.getUid());
-        profile.setFull_name(firebaseUser.getDisplayName());
-        profile.setAvatar_url(
-                firebaseUser.getPhotoUrl() != null ? firebaseUser.getPhotoUrl().toString() : null);
-
-        new UserService().upsertProfile(profile, new AsyncCrudService.ItemCallback<User>() {
+        UserService userService = new UserService();
+        userService.getProfileById(firebaseUser.getUid(), new AsyncCrudService.ItemCallback<User>() {
             @Override
             public void onSuccess(User data) {
-                setLoading(false);
-                navigateToMain();
+                User profile = data != null ? data : new User();
+                profile.setId(firebaseUser.getUid());
+                profile.setFull_name(firebaseUser.getDisplayName());
+                profile.setAvatar_url(
+                        firebaseUser.getPhotoUrl() != null ? firebaseUser.getPhotoUrl().toString() : null);
+                if (data == null) {
+                    applyDefaultAccessFields(profile);
+                }
+
+                userService.upsertProfile(profile, new AsyncCrudService.ItemCallback<User>() {
+                    @Override
+                    public void onSuccess(User saved) {
+                        setLoading(false);
+                        navigateToMain();
+                    }
+
+                    @Override
+                    public void onError(String error) {
+                        setLoading(false);
+                        Toast.makeText(LoginActivity.this,
+                                "Không thể đồng bộ hồ sơ: " + error,
+                                Toast.LENGTH_LONG).show();
+                    }
+                });
             }
 
             @Override
             public void onError(String error) {
                 setLoading(false);
-                navigateToMain();
+                Toast.makeText(LoginActivity.this,
+                        "Không thể tải hồ sơ: " + error,
+                        Toast.LENGTH_LONG).show();
             }
         });
     }
@@ -186,7 +205,7 @@ public class LoginActivity extends AppCompatActivity {
                     if (task.isSuccessful()) {
                         FirebaseUser user = mAuth.getCurrentUser();
                         if (user != null && user.isEmailVerified()) {
-                            navigateToMain();
+                            syncEmailProfileAndNavigate(user);
                         } else {
                             setLoading(false);
                             // Gửi lại email verify rồi chuyển sang màn hình verify
@@ -288,6 +307,57 @@ public class LoginActivity extends AppCompatActivity {
                         Toast.makeText(this, "Xác thực Google thất bại", Toast.LENGTH_SHORT).show();
                     }
                 });
+    }
+
+    private void syncEmailProfileAndNavigate(FirebaseUser firebaseUser) {
+        UserService userService = new UserService();
+        userService.getProfileById(firebaseUser.getUid(), new AsyncCrudService.ItemCallback<User>() {
+            @Override
+            public void onSuccess(User data) {
+                User profile = data != null ? data : new User();
+                profile.setId(firebaseUser.getUid());
+                if (TextUtils.isEmpty(profile.getFull_name())) {
+                    profile.setFull_name(firebaseUser.getDisplayName());
+                }
+
+                if (data == null) {
+                    applyDefaultAccessFields(profile);
+                    userService.upsertProfile(profile, new AsyncCrudService.ItemCallback<User>() {
+                        @Override
+                        public void onSuccess(User saved) {
+                            setLoading(false);
+                            navigateToMain();
+                        }
+
+                        @Override
+                        public void onError(String error) {
+                            setLoading(false);
+                            Toast.makeText(LoginActivity.this,
+                                    "Không thể đồng bộ hồ sơ: " + error,
+                                    Toast.LENGTH_LONG).show();
+                        }
+                    });
+                    return;
+                }
+
+                setLoading(false);
+                navigateToMain();
+            }
+
+            @Override
+            public void onError(String error) {
+                setLoading(false);
+                Toast.makeText(LoginActivity.this,
+                        "Không thể tải hồ sơ: " + error,
+                        Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
+    private void applyDefaultAccessFields(User user) {
+        user.setRole(AccessControl.ROLE_USER);
+        user.setAccount_status(AccessControl.STATUS_ACTIVE);
+        user.setVerified(false);
     }
 
     // ─── Navigation ───────────────────────────────────────────────────────────

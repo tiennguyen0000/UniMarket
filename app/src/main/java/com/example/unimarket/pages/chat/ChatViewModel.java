@@ -56,15 +56,31 @@ public class ChatViewModel extends ViewModel {
         stopListening();
         this.conversation = conversation;
         this.conversationId = conversation.getId();
-        ensureConversation(conversation);
-
         isLoading.setValue(true);
+
+        ensureConversation(conversation, this::listenForMessages);
+    }
+
+    public void sendMessage(String senderId, String content) {
+        String trimmed = content != null ? content.trim() : "";
+        if (TextUtils.isEmpty(conversationId) || trimmed.isEmpty()) return;
+        if (TextUtils.isEmpty(senderId)
+                || conversation == null
+                || (!senderId.equals(conversation.getBuyer_id()) && !senderId.equals(conversation.getSeller_id()))) {
+            errorMessage.setValue("Bạn không có quyền gửi tin nhắn trong cuộc hội thoại này.");
+            return;
+        }
+
+        ensureConversation(conversation, () -> saveMessage(senderId, trimmed));
+    }
+
+    private void listenForMessages() {
         listenerRegistration = db.collection("messages")
                 .whereEqualTo("conversation_id", conversationId)
                 .addSnapshotListener((snapshots, error) -> {
                     isLoading.setValue(false);
                     if (error != null) {
-                        errorMessage.setValue(error.getMessage());
+                        errorMessage.setValue(readableError(error.getMessage(), "Không thể tải cuộc trò chuyện."));
                         return;
                     }
 
@@ -83,30 +99,45 @@ public class ChatViewModel extends ViewModel {
                 });
     }
 
-    public void sendMessage(String senderId, String content) {
-        String trimmed = content != null ? content.trim() : "";
-        if (TextUtils.isEmpty(conversationId) || trimmed.isEmpty()) return;
+    private void ensureConversation(Conversation data, Runnable onReady) {
+        if (data == null || TextUtils.isEmpty(data.getId())) {
+            isLoading.setValue(false);
+            errorMessage.setValue("Không thể mở hội thoại.");
+            return;
+        }
 
-        String now = nowIsoUtc();
-        String safeSenderId = !TextUtils.isEmpty(senderId) ? senderId : "guest_user";
-        Message message = new Message(null, conversationId, safeSenderId, trimmed, now);
-
-        db.collection("messages")
-                .add(message)
-                .addOnSuccessListener(documentReference -> updateConversationPreview(trimmed, safeSenderId, now))
-                .addOnFailureListener(e -> errorMessage.setValue(e.getMessage()));
-    }
-
-    private void ensureConversation(Conversation data) {
         String now = nowIsoUtc();
         if (TextUtils.isEmpty(data.getCreated_at())) {
             data.setCreated_at(now);
         }
         data.setUpdated_at(now);
+
         db.collection("conversations")
                 .document(data.getId())
                 .set(data, SetOptions.merge())
-                .addOnFailureListener(e -> errorMessage.setValue(e.getMessage()));
+                .addOnSuccessListener(unused -> {
+                    if (onReady != null) onReady.run();
+                })
+                .addOnFailureListener(e -> {
+                    isLoading.setValue(false);
+                    errorMessage.setValue(readableError(
+                            e != null ? e.getMessage() : null,
+                            "Không thể tạo cuộc hội thoại."
+                    ));
+                });
+    }
+
+    private void saveMessage(String senderId, String content) {
+        String now = nowIsoUtc();
+        Message message = new Message(null, conversationId, senderId, content, now);
+
+        db.collection("messages")
+                .add(message)
+                .addOnSuccessListener(documentReference -> updateConversationPreview(content, senderId, now))
+                .addOnFailureListener(e -> errorMessage.setValue(readableError(
+                        e != null ? e.getMessage() : null,
+                        "Không thể gửi tin nhắn."
+                )));
     }
 
     private void updateConversationPreview(String lastMessage, String senderId, String timestamp) {
@@ -117,7 +148,11 @@ public class ChatViewModel extends ViewModel {
         updates.put("last_message_at", timestamp);
         db.collection("conversations")
                 .document(conversationId)
-                .set(updates, SetOptions.merge());
+                .set(updates, SetOptions.merge())
+                .addOnFailureListener(e -> errorMessage.setValue(readableError(
+                        e != null ? e.getMessage() : null,
+                        "Không thể cập nhật hội thoại."
+                )));
     }
 
     private void stopListening() {
@@ -129,6 +164,14 @@ public class ChatViewModel extends ViewModel {
 
     private String safeCreatedAt(Message message) {
         return message != null && message.getCreated_at() != null ? message.getCreated_at() : "";
+    }
+
+    private String readableError(String rawError, String fallback) {
+        if (TextUtils.isEmpty(rawError)) return fallback;
+        if (rawError.contains("PERMISSION_DENIED") || rawError.contains("Missing or insufficient permissions")) {
+            return fallback;
+        }
+        return rawError;
     }
 
     private static String safeDocumentPart(String value) {

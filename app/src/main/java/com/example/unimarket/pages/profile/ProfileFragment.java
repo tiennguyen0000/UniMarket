@@ -8,7 +8,9 @@ import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -17,6 +19,7 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.navigation.fragment.NavHostFragment;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -24,9 +27,16 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.example.unimarket.MainActivity;
 import com.example.unimarket.R;
+import com.example.unimarket.auth.AccessControl;
 import com.example.unimarket.data.model.Order;
 import com.example.unimarket.data.model.Product;
+import com.example.unimarket.data.model.StudentVerification;
 import com.example.unimarket.data.model.User;
+import com.example.unimarket.data.service.OrderService;
+import com.example.unimarket.data.service.ProductService;
+import com.example.unimarket.data.service.StudentVerificationService;
+import com.example.unimarket.data.service.UserService;
+import com.example.unimarket.data.service.base.AsyncCrudService;
 import com.example.unimarket.pages.home.HomeUiUtils;
 import com.example.unimarket.pages.home.ProductDetailBottomSheetFragment;
 import com.example.unimarket.pages.post.PostListingFragment;
@@ -36,19 +46,33 @@ import com.google.android.material.textfield.TextInputEditText;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 import java.util.Locale;
+import java.util.TimeZone;
 
 public class ProfileFragment extends Fragment {
 
     private TextView tvName, tvUniversity, tvVerifyStatus, tvOrderCount, tvPostCount, tvRating;
-    private ImageView ivAvatar, ivSettings;
-    private View btnEditProfile, btnShare;
+    private ImageView ivAvatar, ivSettings, ivVerifyBadge;
+    private View btnEditProfile, btnShare, btnRequestVerification;
+    private View cardAdminConsole, btnOpenAdminConsole;
+    private View layoutProfileLoading, layoutProfileEmpty, btnProfileEmptyAction;
+    private TextView tvProfileEmptyTitle, tvProfileEmptyMessage;
     private TabLayout tabLayout;
     private RecyclerView rvContent;
 
     private ProfileViewModel profileViewModel;
     private OrdersInProfileAdapter ordersAdapter;
     private UserPostAdapter postsAdapter;
+    private UserPostAdapter savedAdapter;
+    private final StudentVerificationService verificationService = new StudentVerificationService();
+    private final UserService userService = new UserService();
+    private final OrderService orderService = new OrderService();
+    private final ProductService productService = new ProductService();
+    private String currentUserId;
 
     @Nullable
     @Override
@@ -70,13 +94,25 @@ public class ProfileFragment extends Fragment {
         tvRating = view.findViewById(R.id.tvRating);
         ivAvatar = view.findViewById(R.id.ivAvatar);
         ivSettings = view.findViewById(R.id.ivSettings);
+        ivVerifyBadge = view.findViewById(R.id.ivVerifyBadge);
         btnEditProfile = view.findViewById(R.id.btnEditProfile);
         btnShare = view.findViewById(R.id.btnShare);
+        btnRequestVerification = view.findViewById(R.id.btnRequestVerification);
+        cardAdminConsole = view.findViewById(R.id.cardAdminConsole);
+        btnOpenAdminConsole = view.findViewById(R.id.btnOpenAdminConsole);
+        layoutProfileLoading = view.findViewById(R.id.layoutProfileLoading);
+        layoutProfileEmpty = view.findViewById(R.id.layoutProfileEmpty);
+        btnProfileEmptyAction = view.findViewById(R.id.btnProfileEmptyAction);
+        tvProfileEmptyTitle = view.findViewById(R.id.tvProfileEmptyTitle);
+        tvProfileEmptyMessage = view.findViewById(R.id.tvProfileEmptyMessage);
         tabLayout = view.findViewById(R.id.tabLayout);
         rvContent = view.findViewById(R.id.rvContent);
 
         ordersAdapter = new OrdersInProfileAdapter(this::showOrderDetailDialog);
         postsAdapter = new UserPostAdapter(this::openPostDetail);
+        savedAdapter = new UserPostAdapter(this::openPostDetail);
+        FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
+        currentUserId = firebaseUser != null ? firebaseUser.getUid() : null;
 
         rvContent.setNestedScrollingEnabled(false);
 
@@ -102,6 +138,7 @@ public class ProfileFragment extends Fragment {
     private void loadUserProfile() {
         FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
         if (firebaseUser == null) return;
+        currentUserId = firebaseUser.getUid();
         profileViewModel.loadProfile(firebaseUser.getUid(), firebaseUser.getDisplayName());
     }
 
@@ -114,15 +151,15 @@ public class ProfileFragment extends Fragment {
     }
 
     private void setupListeners() {
-        ivSettings.setOnClickListener(v -> {
-            FirebaseAuth.getInstance().signOut();
-            Intent intent = new Intent(requireContext(), MainActivity.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            startActivity(intent);
-        });
+        ivSettings.setOnClickListener(v -> confirmSignOut());
 
         btnEditProfile.setOnClickListener(v -> showEditProfileDialog());
         btnShare.setOnClickListener(v -> shareProfile());
+        btnRequestVerification.setOnClickListener(v -> showVerificationRequestDialog());
+        btnOpenAdminConsole.setOnClickListener(v ->
+                NavHostFragment.findNavController(this).navigate(R.id.adminConsoleFragment));
+        btnProfileEmptyAction.setOnClickListener(v ->
+                NavHostFragment.findNavController(this).navigate(R.id.postListingFragment));
 
         tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
             @Override
@@ -138,11 +175,16 @@ public class ProfileFragment extends Fragment {
             rvContent.setLayoutManager(new LinearLayoutManager(requireContext()));
             rvContent.setAdapter(ordersAdapter);
             if (state != null) ordersAdapter.submitList(state.getOrders());
-        } else {
+        } else if (position == 1) {
             rvContent.setLayoutManager(new GridLayoutManager(requireContext(), 2));
             rvContent.setAdapter(postsAdapter);
             if (state != null) postsAdapter.submitList(state.getPosts());
+        } else {
+            rvContent.setLayoutManager(new GridLayoutManager(requireContext(), 2));
+            rvContent.setAdapter(savedAdapter);
+            if (state != null) savedAdapter.submitList(state.getSavedProducts());
         }
+        updateContentState(state);
     }
 
     private void observeViewModel() {
@@ -158,9 +200,12 @@ public class ProfileFragment extends Fragment {
             int tabPos = tabLayout.getSelectedTabPosition();
             if (tabPos == 0) {
                 ordersAdapter.submitList(state.getOrders());
-            } else {
+            } else if (tabPos == 1) {
                 postsAdapter.submitList(state.getPosts());
+            } else {
+                savedAdapter.submitList(state.getSavedProducts());
             }
+            updateContentState(state);
 
             User user = state.getProfile();
             if (user == null) return;
@@ -168,13 +213,15 @@ public class ProfileFragment extends Fragment {
             tvName.setText(!TextUtils.isEmpty(user.getFull_name()) ? user.getFull_name() : "UniMarket User");
             tvUniversity.setText(!TextUtils.isEmpty(user.getUniversity()) ? user.getUniversity() : "Chưa cập nhật trường");
 
-            if (user.is_verified()) {
+            if (user.isVerified()) {
                 tvVerifyStatus.setText("Sinh viên đã xác thực");
                 tvVerifyStatus.setTextColor(getResources().getColor(R.color.verification_green));
             } else {
                 tvVerifyStatus.setText("Chưa xác thực");
                 tvVerifyStatus.setTextColor(getResources().getColor(R.color.text_secondary));
             }
+            bindVerificationActions(user);
+            bindAdminConsole(user);
 
             if (!TextUtils.isEmpty(user.getAvatar_url())) {
                 Glide.with(this)
@@ -192,6 +239,204 @@ public class ProfileFragment extends Fragment {
                 Toast.makeText(requireContext(), event.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    private void confirmSignOut() {
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Đăng xuất UniMarket?")
+                .setMessage("Bạn sẽ cần đăng nhập lại để đăng tin, nhắn tin và theo dõi đơn hàng.")
+                .setNegativeButton("Ở lại", null)
+                .setPositiveButton("Đăng xuất", (dialog, which) -> {
+                    FirebaseAuth.getInstance().signOut();
+                    Intent intent = new Intent(requireContext(), MainActivity.class);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    startActivity(intent);
+                })
+                .show();
+    }
+
+    private void bindVerificationActions(User user) {
+        boolean verified = user != null && user.isVerified();
+        boolean reviewer = AccessControl.isModerator(user);
+
+        ivVerifyBadge.setVisibility(verified ? View.VISIBLE : View.GONE);
+        btnRequestVerification.setVisibility(!verified && !reviewer ? View.VISIBLE : View.GONE);
+    }
+
+    private void bindAdminConsole(User user) {
+        cardAdminConsole.setVisibility(AccessControl.isModerator(user) ? View.VISIBLE : View.GONE);
+    }
+
+    private void showVerificationRequestDialog() {
+        FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
+        ProfileUiState state = profileViewModel.getUiState().getValue();
+        User profile = state != null ? state.getProfile() : null;
+        if (firebaseUser == null || profile == null) {
+            Toast.makeText(requireContext(), "Vui lòng đăng nhập lại", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        LinearLayout content = new LinearLayout(requireContext());
+        content.setOrientation(LinearLayout.VERTICAL);
+        int padding = (int) (20 * getResources().getDisplayMetrics().density);
+        content.setPadding(padding, 8, padding, 0);
+
+        EditText etStudentId = new EditText(requireContext());
+        etStudentId.setHint("Mã sinh viên");
+        etStudentId.setSingleLine(true);
+        content.addView(etStudentId);
+
+        EditText etNote = new EditText(requireContext());
+        etNote.setHint("Ghi chú xác thực");
+        etNote.setMinLines(2);
+        etNote.setText(!TextUtils.isEmpty(profile.getUniversity()) ? profile.getUniversity() : "");
+        content.addView(etNote);
+
+        AlertDialog dialog = new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Gửi yêu cầu xác thực")
+                .setView(content)
+                .setNegativeButton("Hủy", null)
+                .setPositiveButton("Gửi", null)
+                .create();
+
+        dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String studentId = etStudentId.getText() != null ? etStudentId.getText().toString().trim() : "";
+            String note = etNote.getText() != null ? etNote.getText().toString().trim() : "";
+            if (TextUtils.isEmpty(studentId)) {
+                etStudentId.setError("Nhập mã sinh viên");
+                return;
+            }
+
+            StudentVerification request = new StudentVerification();
+            request.setId(firebaseUser.getUid());
+            request.setUser_id(firebaseUser.getUid());
+            request.setMethod("student_profile");
+            request.setStatus("pending");
+            request.setStudent_id(studentId);
+            request.setNote(note);
+            request.setCreated_at(nowIsoUtc());
+
+            verificationService.submitRequest(request, new AsyncCrudService.ItemCallback<StudentVerification>() {
+                @Override
+                public void onSuccess(StudentVerification data) {
+                    dialog.dismiss();
+                    loadUserProfile();
+                }
+
+                @Override
+                public void onError(String error) {
+                    Toast.makeText(requireContext(), "Gửi yêu cầu thất bại: " + error, Toast.LENGTH_LONG).show();
+                }
+            });
+        }));
+
+        dialog.show();
+    }
+
+    private void showVerificationReviewDialog() {
+        verificationService.getPendingRequests(new AsyncCrudService.ListCallback<StudentVerification>() {
+            @Override
+            public void onSuccess(List<StudentVerification> data) {
+                List<StudentVerification> requests = data != null ? data : new ArrayList<>();
+                if (requests.isEmpty()) {
+                    Toast.makeText(requireContext(), "Không có yêu cầu đang chờ", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                String[] labels = new String[requests.size()];
+                for (int i = 0; i < requests.size(); i++) {
+                    StudentVerification request = requests.get(i);
+                    String studentId = !TextUtils.isEmpty(request.getStudent_id())
+                            ? request.getStudent_id() : "Chưa có MSSV";
+                    labels[i] = studentId + " - " + request.getUser_id();
+                }
+
+                new MaterialAlertDialogBuilder(requireContext())
+                        .setTitle("Duyệt xác thực")
+                        .setItems(labels, (dialog, which) -> approveVerification(requests.get(which)))
+                        .setNegativeButton("Đóng", null)
+                        .show();
+            }
+
+            @Override
+            public void onError(String error) {
+                Toast.makeText(requireContext(), "Không thể tải yêu cầu: " + error, Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
+    private void approveVerification(StudentVerification request) {
+        if (request == null || TextUtils.isEmpty(request.getId()) || TextUtils.isEmpty(request.getUser_id())) {
+            Toast.makeText(requireContext(), "Yêu cầu không hợp lệ", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        userService.setStudentVerified(request.getUser_id(), true, new AsyncCrudService.BooleanCallback() {
+            @Override
+            public void onSuccess(boolean success) {
+                verificationService.approveRequest(request.getId(), nowIsoUtc(), new AsyncCrudService.BooleanCallback() {
+                    @Override
+                    public void onSuccess(boolean success) {
+                        loadUserProfile();
+                    }
+
+                    @Override
+                    public void onError(String error) {
+                        Toast.makeText(requireContext(), "Không thể cập nhật yêu cầu: " + error, Toast.LENGTH_LONG).show();
+                    }
+                });
+            }
+
+            @Override
+            public void onError(String error) {
+                Toast.makeText(requireContext(), "Không thể xác thực user: " + error, Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
+    private void updateContentState(ProfileUiState state) {
+        if (state == null || layoutProfileLoading == null || layoutProfileEmpty == null) {
+            return;
+        }
+        if (state.isLoading()) {
+            layoutProfileLoading.setVisibility(View.VISIBLE);
+            layoutProfileEmpty.setVisibility(View.GONE);
+            rvContent.setVisibility(View.GONE);
+            return;
+        }
+
+        int tabPos = tabLayout.getSelectedTabPosition();
+        boolean showingOrders = tabPos == 0;
+        boolean showingPosts = tabPos == 1;
+        boolean empty = showingOrders
+                ? state.getOrders().isEmpty()
+                : showingPosts ? state.getPosts().isEmpty() : state.getSavedProducts().isEmpty();
+
+        layoutProfileLoading.setVisibility(View.GONE);
+        rvContent.setVisibility(empty ? View.GONE : View.VISIBLE);
+        layoutProfileEmpty.setVisibility(empty ? View.VISIBLE : View.GONE);
+
+        if (empty) {
+            if (showingOrders) {
+                tvProfileEmptyTitle.setText("Bạn chưa có đơn hàng");
+                tvProfileEmptyMessage.setText("Các đơn đã mua sẽ được lưu tại đây để bạn theo dõi trạng thái.");
+                ((TextView) btnProfileEmptyAction).setText("Khám phá sản phẩm");
+                btnProfileEmptyAction.setOnClickListener(v ->
+                        NavHostFragment.findNavController(this).navigate(R.id.searchFragment));
+            } else if (showingPosts) {
+                tvProfileEmptyTitle.setText("Bạn chưa đăng tin nào");
+                tvProfileEmptyMessage.setText("Đăng món đồ không dùng tới để sinh viên khác có thể tìm thấy.");
+                ((TextView) btnProfileEmptyAction).setText("Đăng tin mới");
+                btnProfileEmptyAction.setOnClickListener(v ->
+                        NavHostFragment.findNavController(this).navigate(R.id.postListingFragment));
+            } else {
+                tvProfileEmptyTitle.setText("Bạn chưa lưu sản phẩm");
+                tvProfileEmptyMessage.setText("Nhấn tim ở sản phẩm yêu thích để quay lại nhanh tại đây.");
+                ((TextView) btnProfileEmptyAction).setText("Tìm sản phẩm");
+                btnProfileEmptyAction.setOnClickListener(v ->
+                        NavHostFragment.findNavController(this).navigate(R.id.searchFragment));
+            }
+        }
     }
 
     private void showEditProfileDialog() {
@@ -273,6 +518,58 @@ public class ProfileFragment extends Fragment {
         if (product == null) {
             return;
         }
+        if (tabLayout.getSelectedTabPosition() == 1) {
+            showPostActions(product);
+            return;
+        }
+        showProductDetail(product);
+    }
+
+    private void showPostActions(Product product) {
+        List<String> actions = new ArrayList<>();
+        actions.add("Xem chi tiết");
+        String status = product.getStatus() != null ? product.getStatus().toLowerCase(Locale.ROOT) : "active";
+        if ("active".equals(status) || "available".equals(status)) {
+            actions.add("Đánh dấu đã bán");
+            actions.add("Ẩn tin");
+        } else {
+            actions.add("Đăng lại tin");
+        }
+
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(product.getTitle())
+                .setItems(actions.toArray(new String[0]), (dialog, which) -> {
+                    String action = actions.get(which);
+                    if ("Xem chi tiết".equals(action)) {
+                        showProductDetail(product);
+                    } else if ("Đánh dấu đã bán".equals(action)) {
+                        updateProductStatus(product, "sold");
+                    } else if ("Ẩn tin".equals(action)) {
+                        updateProductStatus(product, "inactive");
+                    } else {
+                        updateProductStatus(product, "active");
+                    }
+                })
+                .setNegativeButton("Đóng", null)
+                .show();
+    }
+
+    private void updateProductStatus(Product product, String status) {
+        product.setStatus(status);
+        product.setUpdated_at(nowIsoUtc());
+        productService.save(product, result -> {
+            if (!isAdded()) {
+                return;
+            }
+            if (result.isSuccess()) {
+                loadUserProfile();
+            } else {
+                Toast.makeText(requireContext(), "Không thể cập nhật tin: " + result.getError(), Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void showProductDetail(Product product) {
         String imageUrl = null;
         if (product.getImage_urls() != null && !product.getImage_urls().isEmpty()) {
             imageUrl = product.getImage_urls().get(0);
@@ -312,11 +609,33 @@ public class ProfileFragment extends Fragment {
         }
         message.append("Tổng thanh toán: ").append(HomeUiUtils.formatPrice(order.getTotal_price()));
 
-        new MaterialAlertDialogBuilder(requireContext())
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(requireContext())
                 .setTitle("Chi tiết đơn " + orderId)
                 .setMessage(message.toString())
-                .setPositiveButton("Đóng", null)
-                .show();
+                .setNegativeButton("Đóng", null);
+
+        String status = order.getStatus() != null ? order.getStatus().toLowerCase(Locale.ROOT) : "pending";
+        if ("pending".equals(status)) {
+            builder.setPositiveButton("Hủy đơn", (dialog, which) -> updateOrderStatus(order, "cancelled"));
+        } else if ("shipping".equals(status)) {
+            builder.setPositiveButton("Đã nhận hàng", (dialog, which) -> updateOrderStatus(order, "done"));
+        }
+        builder.show();
+    }
+
+    private void updateOrderStatus(Order order, String status) {
+        order.setStatus(status);
+        order.setUpdated_at(nowIsoUtc());
+        orderService.save(order, result -> {
+            if (!isAdded()) {
+                return;
+            }
+            if (result.isSuccess()) {
+                loadUserProfile();
+            } else {
+                Toast.makeText(requireContext(), "Không thể cập nhật đơn: " + result.getError(), Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private String statusLabel(String status) {
@@ -331,5 +650,11 @@ public class ProfileFragment extends Fragment {
             case "cancelled": return "Đã hủy";
             default: return status;
         }
+    }
+
+    private String nowIsoUtc() {
+        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
+        format.setTimeZone(TimeZone.getTimeZone("UTC"));
+        return format.format(new Date());
     }
 }
