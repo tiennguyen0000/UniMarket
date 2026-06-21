@@ -135,7 +135,8 @@ public class Controller extends AppCompatActivity {
 
 		boolean fullScreen = destinationId == R.id.postListingFragment
 				|| destinationId == R.id.adminConsoleFragment;
-		boolean profile = destinationId == R.id.profileFragment;
+		boolean profile = destinationId == R.id.profileFragment
+				|| destinationId == R.id.savedSearchesFragment;
 
 		if (fullScreen) {
 			bottomNav.setVisibility(View.GONE);
@@ -150,7 +151,7 @@ public class Controller extends AppCompatActivity {
 		setTabSelected(ivTabHome, tvTabHome, destinationId == R.id.homeFragment);
 		setTabSelected(ivTabSearch, tvTabSearch, destinationId == R.id.searchFragment);
 		setTabSelected(ivTabOrders, tvTabOrders, destinationId == R.id.ordersFragment);
-		setTabSelected(ivTabProfile, tvTabProfile, destinationId == R.id.profileFragment);
+		setTabSelected(ivTabProfile, tvTabProfile, profile);
 	}
 
 	private void setTabSelected(ImageView icon, TextView label, boolean selected) {

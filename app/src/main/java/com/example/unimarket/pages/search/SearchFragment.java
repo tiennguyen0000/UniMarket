@@ -23,12 +23,15 @@ import com.example.unimarket.auth.AccessControl;
 import com.example.unimarket.data.model.Category;
 import com.example.unimarket.data.model.Product;
 import com.example.unimarket.data.model.Review;
+import com.example.unimarket.data.model.SavedSearch;
 import com.example.unimarket.data.model.Wishlist;
 import com.example.unimarket.data.service.ProductService;
 import com.example.unimarket.data.service.ReviewService;
+import com.example.unimarket.data.service.SavedSearchService;
 import com.example.unimarket.data.service.UserService;
 import com.example.unimarket.data.service.WishlistService;
 import com.example.unimarket.data.service.base.AsyncCrudService;
+import com.example.unimarket.data.util.FirestoreIds;
 import com.example.unimarket.pages.home.CartBottomSheetFragment;
 import com.example.unimarket.pages.home.CartFlow;
 import com.example.unimarket.pages.home.HomeViewModel;
@@ -51,6 +54,7 @@ public class SearchFragment extends Fragment {
 
     private EditText etSearchQuery;
     private ImageView btnFilter;
+    private ImageView btnSaveSearch;
     private TextView tvSearchResults;
     private TextView tvResultCount;
     private TextView sortRelevance;
@@ -71,6 +75,7 @@ public class SearchFragment extends Fragment {
     private final ProductService productService = new ProductService();
     private final UserService userService = new UserService();
     private final WishlistService wishlistService = new WishlistService();
+    private final SavedSearchService savedSearchService = new SavedSearchService();
 
     private final List<Product> productList = new ArrayList<>();
     private final List<Product> filteredProductList = new ArrayList<>();
@@ -85,7 +90,9 @@ public class SearchFragment extends Fragment {
     private boolean filterUsed = false;
     private boolean filterSavedOnly = false;
     private String initialCategoryName;
+    private String initialCategoryId;
     private String initialProductId;
+    private String initialSavedSearchId;
     private boolean openedInitialProduct;
     private boolean catalogLoading = true;
     private boolean adminMode;
@@ -119,6 +126,7 @@ public class SearchFragment extends Fragment {
     private void initViews(View root) {
         etSearchQuery = root.findViewById(R.id.etSearchQuery);
         btnFilter = root.findViewById(R.id.btnFilter);
+        btnSaveSearch = root.findViewById(R.id.btnSaveSearch);
         tvSearchResults = root.findViewById(R.id.tvSearchResults);
         tvResultCount = root.findViewById(R.id.tvResultCount);
         rvSearchProducts = root.findViewById(R.id.rvSearchProducts);
@@ -199,6 +207,7 @@ public class SearchFragment extends Fragment {
 
     private void setupClicks() {
         btnFilter.setOnClickListener(v -> showFilterBottomSheet());
+        btnSaveSearch.setOnClickListener(v -> showSaveSearchDialog());
 
         etSearchQuery.addTextChangedListener(new TextWatcher() {
             @Override
@@ -234,10 +243,15 @@ public class SearchFragment extends Fragment {
             return;
         }
         initialCategoryName = args.getString("category_name");
+        initialCategoryId = args.getString("category_id");
         initialProductId = args.getString("product_id");
+        initialSavedSearchId = args.getString("saved_search_id");
         if (!TextUtils.isEmpty(initialCategoryName)) {
             etSearchQuery.setText(initialCategoryName);
             etSearchQuery.setSelection(etSearchQuery.getText().length());
+        }
+        if (!TextUtils.isEmpty(initialSavedSearchId)) {
+            loadSavedSearch(initialSavedSearchId);
         }
     }
 
@@ -407,6 +421,39 @@ public class SearchFragment extends Fragment {
 
     private void toggleSavedOnly() {
         filterSavedOnly = !filterSavedOnly;
+        updateSavedChipState();
+        applySearchFiltersAndSort();
+    }
+
+    private void loadSavedSearch(String savedSearchId) {
+        savedSearchService.getById(savedSearchId, new AsyncCrudService.ItemCallback<SavedSearch>() {
+            @Override
+            public void onSuccess(SavedSearch data) {
+                if (!isAdded() || data == null) {
+                    return;
+                }
+                applySavedSearch(data);
+            }
+
+            @Override
+            public void onError(String error) {
+                if (isAdded() && !TextUtils.isEmpty(error)) {
+                    Toast.makeText(requireContext(), error, Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+    }
+
+    private void applySavedSearch(SavedSearch savedSearch) {
+        etSearchQuery.setText(savedSearch.getQuery() != null ? savedSearch.getQuery() : "");
+        etSearchQuery.setSelection(etSearchQuery.getText().length());
+        minPrice = savedSearch.getMin_price() != null ? savedSearch.getMin_price() : 0d;
+        maxPrice = savedSearch.getMax_price() != null ? savedSearch.getMax_price() : Double.MAX_VALUE;
+        filterNew = savedSearch.isFilter_new();
+        filterUsed = savedSearch.isFilter_used();
+        filterSavedOnly = savedSearch.isFilter_saved_only();
+        currentSort = !TextUtils.isEmpty(savedSearch.getSort()) ? savedSearch.getSort() : "relevance";
+        highlightSelectedSortViewForCurrentSort();
         updateSavedChipState();
         applySearchFiltersAndSort();
     }
@@ -609,6 +656,27 @@ public class SearchFragment extends Fragment {
         applySort();
     }
 
+    private void highlightSelectedSortViewForCurrentSort() {
+        switch (currentSort) {
+            case "newest":
+                highlightSelectedSort(sortNewest);
+                break;
+            case "price_low":
+                highlightSelectedSort(sortPriceLow);
+                break;
+            case "price_high":
+                highlightSelectedSort(sortPriceHigh);
+                break;
+            case "rating":
+                highlightSelectedSort(sortRating);
+                break;
+            case "relevance":
+            default:
+                highlightSelectedSort(sortRelevance);
+                break;
+        }
+    }
+
     private void highlightSelectedSort(TextView selectedView) {
         resetSortButtons();
         selectedView.setBackgroundResource(R.drawable.bg_sort_chip_selected);
@@ -699,6 +767,108 @@ public class SearchFragment extends Fragment {
             return null;
         }
         return product.getImage_urls().get(0);
+    }
+
+    private void showSaveSearchDialog() {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null || TextUtils.isEmpty(user.getUid())) {
+            Toast.makeText(requireContext(), "Vui lòng đăng nhập để lưu tìm kiếm.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        SavedSearch draft = buildSavedSearchDraft(user.getUid());
+        final EditText input = new EditText(requireContext());
+        input.setHint("Ví dụ: Laptop dưới 10 triệu");
+        input.setText(buildSavedSearchNameFallback());
+        input.setSelection(input.getText().length());
+
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Lưu tìm kiếm")
+                .setMessage("Lưu bộ lọc hiện tại để mở lại nhanh và nhận thông báo khi có tin mới phù hợp.")
+                .setView(input)
+                .setNegativeButton("Hủy", null)
+                .setPositiveButton("Lưu", (dialog, which) -> {
+                    String name = input.getText() != null ? input.getText().toString().trim() : "";
+                    draft.setName(!TextUtils.isEmpty(name) ? name : buildSavedSearchNameFallback());
+                    draft.setId(FirestoreIds.stableDocId(
+                            "saved_search",
+                            draft.getUser_id(),
+                            draft.getName(),
+                            String.valueOf(System.currentTimeMillis())));
+                    savedSearchService.save(draft, result -> {
+                        if (!isAdded()) {
+                            return;
+                        }
+                        if (result.isSuccess()) {
+                            Toast.makeText(requireContext(), "Đã lưu tìm kiếm.", Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(requireContext(), result.getError(), Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                })
+                .show();
+    }
+
+    private SavedSearch buildSavedSearchDraft(String userId) {
+        SavedSearch savedSearch = new SavedSearch();
+        String now = nowIsoUtc();
+        savedSearch.setUser_id(userId);
+        savedSearch.setQuery(etSearchQuery.getText() != null ? etSearchQuery.getText().toString().trim() : "");
+        savedSearch.setCategory_id(resolveCategoryFilterId());
+        savedSearch.setMin_price(minPrice > 0d ? minPrice : 0d);
+        savedSearch.setMax_price(maxPrice < Double.MAX_VALUE ? maxPrice : null);
+        savedSearch.setFilter_new(filterNew);
+        savedSearch.setFilter_used(filterUsed);
+        savedSearch.setFilter_saved_only(filterSavedOnly);
+        savedSearch.setSort(currentSort);
+        savedSearch.setAlerts_enabled(true);
+        savedSearch.setLast_seen_product_created_at(latestFilteredProductCreatedAt());
+        savedSearch.setCreated_at(now);
+        savedSearch.setUpdated_at(now);
+        return savedSearch;
+    }
+
+    private String buildSavedSearchNameFallback() {
+        String query = etSearchQuery.getText() != null ? etSearchQuery.getText().toString().trim() : "";
+        if (!TextUtils.isEmpty(query)) {
+            return query;
+        }
+        if (filterSavedOnly) {
+            return "Tin đã lưu";
+        }
+        if (filterNew) {
+            return "Sản phẩm mới";
+        }
+        if (filterUsed) {
+            return "Sản phẩm đã qua sử dụng";
+        }
+        if (minPrice > 0d || maxPrice < Double.MAX_VALUE) {
+            return "Bộ lọc giá";
+        }
+        return "Tất cả sản phẩm";
+    }
+
+    private String resolveCategoryFilterId() {
+        String query = etSearchQuery.getText() != null ? etSearchQuery.getText().toString().trim() : "";
+        if (!TextUtils.isEmpty(initialCategoryId)
+                && !TextUtils.isEmpty(initialCategoryName)
+                && initialCategoryName.equalsIgnoreCase(query)) {
+            return initialCategoryId;
+        }
+        return null;
+    }
+
+    private String latestFilteredProductCreatedAt() {
+        String latest = null;
+        for (Product product : filteredProductList) {
+            if (product == null || TextUtils.isEmpty(product.getCreated_at())) {
+                continue;
+            }
+            if (latest == null || product.getCreated_at().compareTo(latest) > 0) {
+                latest = product.getCreated_at();
+            }
+        }
+        return latest;
     }
 
     private String nowIsoUtc() {

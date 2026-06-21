@@ -59,6 +59,7 @@ public class ProfileFragment extends Fragment {
     private ImageView ivAvatar, ivSettings, ivVerifyBadge;
     private View btnEditProfile, btnShare, btnRequestVerification;
     private View cardAdminConsole, btnOpenAdminConsole;
+    private View cardSavedSearches, btnOpenSavedSearches;
     private View layoutProfileLoading, layoutProfileEmpty, btnProfileEmptyAction;
     private TextView tvProfileEmptyTitle, tvProfileEmptyMessage;
     private TabLayout tabLayout;
@@ -98,6 +99,8 @@ public class ProfileFragment extends Fragment {
         btnEditProfile = view.findViewById(R.id.btnEditProfile);
         btnShare = view.findViewById(R.id.btnShare);
         btnRequestVerification = view.findViewById(R.id.btnRequestVerification);
+        cardSavedSearches = view.findViewById(R.id.cardSavedSearches);
+        btnOpenSavedSearches = view.findViewById(R.id.btnOpenSavedSearches);
         cardAdminConsole = view.findViewById(R.id.cardAdminConsole);
         btnOpenAdminConsole = view.findViewById(R.id.btnOpenAdminConsole);
         layoutProfileLoading = view.findViewById(R.id.layoutProfileLoading);
@@ -156,6 +159,8 @@ public class ProfileFragment extends Fragment {
         btnEditProfile.setOnClickListener(v -> showEditProfileDialog());
         btnShare.setOnClickListener(v -> shareProfile());
         btnRequestVerification.setOnClickListener(v -> showVerificationRequestDialog());
+        btnOpenSavedSearches.setOnClickListener(v ->
+                NavHostFragment.findNavController(this).navigate(R.id.savedSearchesFragment));
         btnOpenAdminConsole.setOnClickListener(v ->
                 NavHostFragment.findNavController(this).navigate(R.id.adminConsoleFragment));
         btnProfileEmptyAction.setOnClickListener(v ->

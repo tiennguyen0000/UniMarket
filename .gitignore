@@ -18,3 +18,4 @@ app/serviceAccountKey.txt
 /tools/seed/serviceAccountKey.json
 tools/serviceAccountKey.txt
 tools/node_modules/
+docs

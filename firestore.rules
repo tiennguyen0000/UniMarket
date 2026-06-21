@@ -129,6 +129,13 @@ service cloud.firestore {
         && request.resource.data.user_id == uid();
     }
 
+    match /saved_searches/{savedSearchId} {
+      allow read, delete: if activeUser()
+        && resource.data.user_id == uid();
+      allow create, update: if activeUser()
+        && request.resource.data.user_id == uid();
+    }
+
     match /carts/{cartId} {
       allow read, delete: if activeUser()
         && resource.data.user_id == uid();

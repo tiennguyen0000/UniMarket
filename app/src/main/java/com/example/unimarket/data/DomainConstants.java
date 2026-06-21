@@ -14,6 +14,7 @@ public final class DomainConstants {
         public static final String PRODUCTS = "products";
         public static final String PROFILES = "profiles";
         public static final String REVIEWS = "reviews";
+        public static final String SAVED_SEARCHES = "saved_searches";
 
         private Collections() {
         }
@@ -52,6 +53,7 @@ public final class DomainConstants {
         public static final String ORDER = "order";
         public static final String CHAT = "chat";
         public static final String REVIEW = "review";
+        public static final String SAVED_SEARCH = "saved_search";
 
         private NotificationType() {
         }

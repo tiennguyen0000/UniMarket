@@ -180,6 +180,11 @@ public class NotificationBottomSheetFragment extends BottomSheetDialogFragment {
         if (type.contains("order") || type.contains("review")) {
             dismiss();
             NavHostFragment.findNavController(requireParentFragment()).navigate(R.id.ordersFragment);
+        } else if (type.contains("saved_search")) {
+            dismiss();
+            Bundle args = new Bundle();
+            args.putString("saved_search_id", notification.getTarget_id());
+            NavHostFragment.findNavController(requireParentFragment()).navigate(R.id.searchFragment, args);
         } else if (type.contains("product") || type.contains("price") || type.contains("listing")) {
             dismiss();
             NavHostFragment.findNavController(requireParentFragment()).navigate(R.id.searchFragment);

@@ -15,12 +15,18 @@ public class NotificationService extends BaseCrudService<Notification> {
 
     public void createNotification(String userId, String title, String content, String type,
                                    String targetId, ResultCallback<Notification> callback) {
-        Notification notification = new Notification();
-        notification.setId(FirestoreIds.stableDocId(
+        createUniqueNotification(FirestoreIds.stableDocId(
                 "notification",
                 userId,
                 targetId,
-                String.valueOf(System.currentTimeMillis())));
+                String.valueOf(System.currentTimeMillis())),
+                userId, title, content, type, targetId, callback);
+    }
+
+    public void createUniqueNotification(String id, String userId, String title, String content, String type,
+                                         String targetId, ResultCallback<Notification> callback) {
+        Notification notification = new Notification();
+        notification.setId(id);
         notification.setUser_id(userId);
         notification.setTitle(title);
         notification.setContent(content);

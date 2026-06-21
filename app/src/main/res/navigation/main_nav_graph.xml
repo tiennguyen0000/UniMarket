@@ -25,6 +25,11 @@
         android:label="Hồ sơ" />
 
     <fragment
+        android:id="@+id/savedSearchesFragment"
+        android:name="com.example.unimarket.pages.profile.SavedSearchesFragment"
+        android:label="Tìm kiếm đã lưu" />
+
+    <fragment
         android:id="@+id/adminConsoleFragment"
         android:name="com.example.unimarket.pages.profile.AdminConsoleFragment"
         android:label="Bảng quản trị" />

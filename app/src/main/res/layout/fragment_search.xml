@@ -41,6 +41,17 @@
                 android:textSize="14sp" />
 
             <ImageView
+                android:id="@+id/btnSaveSearch"
+                android:layout_width="46dp"
+                android:layout_height="46dp"
+                android:layout_marginStart="12dp"
+                android:background="@drawable/bg_home_circle_white"
+                android:contentDescription="Lưu tìm kiếm"
+                android:padding="10dp"
+                android:src="@android:drawable/btn_star_big_off"
+                app:tint="#21409A" />
+
+            <ImageView
                 android:id="@+id/btnFilter"
                 android:layout_width="46dp"
                 android:layout_height="46dp"

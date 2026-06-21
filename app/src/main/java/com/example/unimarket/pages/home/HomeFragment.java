@@ -25,6 +25,7 @@ import com.example.unimarket.data.model.Category;
 import com.example.unimarket.data.model.Notification;
 import com.example.unimarket.data.model.User;
 import com.example.unimarket.data.service.NotificationService;
+import com.example.unimarket.data.service.SavedSearchAlertSync;
 import com.example.unimarket.data.service.UserService;
 import com.example.unimarket.data.service.base.AsyncCrudService;
 import com.example.unimarket.pages.chat.ChatInboxBottomSheetFragment;
@@ -63,6 +64,7 @@ public class HomeFragment extends Fragment {
 
     private final UserService userService = new UserService();
     private final NotificationService notificationService = new NotificationService();
+    private final SavedSearchAlertSync savedSearchAlertSync = new SavedSearchAlertSync();
     private final List<Category> categoryList = new ArrayList<>();
     private boolean isExpandedCategories = false;
 
@@ -86,6 +88,14 @@ public class HomeFragment extends Fragment {
         setupRefreshListener();
         setupObservers();
         homeViewModel.loadHomeData();
+        syncSavedSearchAlerts();
+        refreshUnreadNotificationBadge();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        syncSavedSearchAlerts();
         refreshUnreadNotificationBadge();
     }
 
@@ -351,7 +361,10 @@ public class HomeFragment extends Fragment {
         getParentFragmentManager().setFragmentResultListener(
                 PostListingFragment.RESULT_LISTING_CREATED,
                 getViewLifecycleOwner(),
-                (requestKey, result) -> homeViewModel.loadHomeData()
+                (requestKey, result) -> {
+                    homeViewModel.loadHomeData();
+                    syncSavedSearchAlerts();
+                }
         );
         getChildFragmentManager().setFragmentResultListener(
                 NotificationBottomSheetFragment.RESULT_NOTIFICATIONS_CHANGED,
@@ -433,6 +446,14 @@ public class HomeFragment extends Fragment {
                 }
             }
         });
+    }
+
+    private void syncSavedSearchAlerts() {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null || TextUtils.isEmpty(user.getUid())) {
+            return;
+        }
+        savedSearchAlertSync.sync(user.getUid(), this::refreshUnreadNotificationBadge);
     }
 
     private void bindNotificationBadge(int unreadCount) {
