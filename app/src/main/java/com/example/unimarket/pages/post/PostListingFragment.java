@@ -27,11 +27,17 @@ import androidx.navigation.fragment.NavHostFragment;
 
 import com.bumptech.glide.Glide;
 import com.example.unimarket.R;
-import com.example.unimarket.data.DomainConstants;
+import com.example.unimarket.auth.AccessControl;
 import com.example.unimarket.data.model.Category;
 import com.example.unimarket.data.model.Product;
+import com.example.unimarket.data.model.User;
+import com.example.unimarket.data.service.UserService;
+import com.example.unimarket.data.service.base.AsyncCrudService;
+import com.example.unimarket.pages.home.HomeUiUtils;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,13 +48,15 @@ public class PostListingFragment extends Fragment {
     private EditText etTitle, etPrice, etDescription;
     private RadioGroup rgCondition;
     private MaterialButton btnSubmit;
-    private View btnUploadImage, btnSelectCategory;
-    private TextView tvImageCount, tvCategoryLabel;
+    private View btnUploadImage, btnSelectCategory, ivPreview;
+    private TextView tvImageCount, tvCategoryLabel, tvCategoryError, tvConditionError;
     private LinearLayout layoutImages;
 
     private PostListingViewModel viewModel;
     private String selectedCategoryId = null;
     private List<Category> categoryList = new ArrayList<>();
+    private boolean canPostListing = false;
+    private final UserService userService = new UserService();
 
     private final ActivityResultLauncher<String> pickImagesLauncher = registerForActivityResult(
             new ActivityResultContracts.GetMultipleContents(),
@@ -83,9 +91,13 @@ public class PostListingFragment extends Fragment {
         btnSubmit = view.findViewById(R.id.btnSubmit);
         btnUploadImage = view.findViewById(R.id.btnUploadImage);
         btnSelectCategory = view.findViewById(R.id.btnSelectCategory);
+        ivPreview = view.findViewById(R.id.ivPreview);
         tvImageCount = view.findViewById(R.id.tvImageCount);
         tvCategoryLabel = view.findViewById(R.id.tvCategoryLabel);
+        tvCategoryError = view.findViewById(R.id.tvCategoryError);
+        tvConditionError = view.findViewById(R.id.tvConditionError);
         layoutImages = view.findViewById(R.id.layoutImages);
+        btnSubmit.setEnabled(false);
 
         androidx.appcompat.widget.Toolbar toolbar = view.findViewById(R.id.toolbar);
         setupLightSystemBars();
@@ -107,9 +119,51 @@ public class PostListingFragment extends Fragment {
                 }
         );
 
+        guardSellAccess();
         viewModel.loadCategories();
         observeViewModel();
         setupListeners();
+    }
+
+    private void guardSellAccess() {
+        FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (firebaseUser == null || TextUtils.isEmpty(firebaseUser.getUid())) {
+            showSellBlocked("Vui lòng đăng nhập để đăng tin bán hàng.");
+            return;
+        }
+
+        userService.getProfileById(firebaseUser.getUid(), new AsyncCrudService.ItemCallback<User>() {
+            @Override
+            public void onSuccess(User data) {
+                if (!isAdded()) {
+                    return;
+                }
+                if (AccessControl.canSell(data)) {
+                    canPostListing = true;
+                    btnSubmit.setEnabled(true);
+                } else {
+                    showSellBlocked("Tài khoản cần được xác thực sinh viên trước khi đăng bán.");
+                }
+            }
+
+            @Override
+            public void onError(String error) {
+                if (isAdded()) {
+                    showSellBlocked("Không thể kiểm tra quyền đăng tin. Vui lòng thử lại.");
+                }
+            }
+        });
+    }
+
+    private void showSellBlocked(String message) {
+        canPostListing = false;
+        btnSubmit.setEnabled(false);
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Chưa thể đăng tin")
+                .setMessage(message)
+                .setPositiveButton("Đã hiểu", (dialog, which) ->
+                        NavHostFragment.findNavController(this).popBackStack())
+                .show();
     }
 
     private void setupLightSystemBars() {
@@ -136,15 +190,14 @@ public class PostListingFragment extends Fragment {
         });
 
         viewModel.getIsLoading().observe(getViewLifecycleOwner(), loading -> {
-            btnSubmit.setEnabled(!loading);
+            btnSubmit.setEnabled(canPostListing && !loading);
             btnSubmit.setText(loading ? "Đang xử lý..." : "Đăng tin ngay");
         });
 
         viewModel.getPostSuccess().observe(getViewLifecycleOwner(), success -> {
             if (Boolean.TRUE.equals(success)) {
-                Toast.makeText(requireContext(), "Đăng tin thành công!", Toast.LENGTH_SHORT).show();
                 getParentFragmentManager().setFragmentResult(RESULT_LISTING_CREATED, new Bundle());
-                NavHostFragment.findNavController(this).popBackStack();
+                NavHostFragment.findNavController(this).navigate(R.id.profileFragment);
             }
         });
 
@@ -183,7 +236,9 @@ public class PostListingFragment extends Fragment {
         });
 
         btnSelectCategory.setOnClickListener(v -> showCategoryDialog());
+        ivPreview.setOnClickListener(v -> showListingPreview());
         btnSubmit.setOnClickListener(v -> validateAndSubmit());
+        rgCondition.setOnCheckedChangeListener((group, checkedId) -> tvConditionError.setVisibility(View.GONE));
     }
 
     private void showCategoryDialog() {
@@ -203,11 +258,50 @@ public class PostListingFragment extends Fragment {
                     selectedCategoryId = selected.getId();
                     tvCategoryLabel.setText(selected.getName());
                     tvCategoryLabel.setTextColor(getResources().getColor(R.color.text_primary));
+                    tvCategoryError.setVisibility(View.GONE);
                 })
                 .show();
     }
 
+    private void showListingPreview() {
+        String title = etTitle.getText() != null ? etTitle.getText().toString().trim() : "";
+        String priceStr = etPrice.getText() != null ? etPrice.getText().toString().trim() : "";
+        String description = etDescription.getText() != null ? etDescription.getText().toString().trim() : "";
+        String category = selectedCategoryName();
+        String condition = rgCondition.getCheckedRadioButtonId() == R.id.rbNew
+                ? "Mới" : rgCondition.getCheckedRadioButtonId() == R.id.rbUsed ? "Đã sử dụng" : "Chưa chọn";
+        int imageCount = viewModel.getSelectedImages().getValue() != null
+                ? viewModel.getSelectedImages().getValue().size() : 0;
+
+        String price = priceStr.isEmpty() ? "Chưa nhập" : priceStr + " VNĐ";
+        try {
+            if (!priceStr.isEmpty()) {
+                price = HomeUiUtils.formatPrice(Double.parseDouble(priceStr));
+            }
+        } catch (NumberFormatException ignored) {
+            price = priceStr + " VNĐ";
+        }
+
+        String message = "Tiêu đề: " + (title.isEmpty() ? "Chưa nhập" : title)
+                + "\nGiá: " + price
+                + "\nDanh mục: " + (category != null ? category : "Chưa chọn")
+                + "\nTình trạng: " + condition
+                + "\nẢnh: " + imageCount + "/6"
+                + "\n\nMô tả:\n" + (description.isEmpty() ? "Chưa nhập mô tả" : description);
+
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Xem trước tin đăng")
+                .setMessage(message)
+                .setPositiveButton("Tiếp tục chỉnh", null)
+                .show();
+    }
+
     private void validateAndSubmit() {
+        if (!canPostListing) {
+            showSellBlocked("Tài khoản cần được xác thực sinh viên trước khi đăng bán.");
+            return;
+        }
+
         String title = etTitle.getText().toString().trim();
         String priceStr = etPrice.getText().toString().trim();
         String description = etDescription.getText().toString().trim();
@@ -221,11 +315,13 @@ public class PostListingFragment extends Fragment {
             return;
         }
         if (selectedCategoryId == null) {
-            Toast.makeText(requireContext(), "Vui lòng chọn danh mục", Toast.LENGTH_SHORT).show();
+            tvCategoryError.setVisibility(View.VISIBLE);
+            btnSelectCategory.requestFocus();
             return;
         }
         if (rgCondition.getCheckedRadioButtonId() == -1) {
-            Toast.makeText(requireContext(), "Vui lòng chọn tình trạng", Toast.LENGTH_SHORT).show();
+            tvConditionError.setVisibility(View.VISIBLE);
+            rgCondition.requestFocus();
             return;
         }
 
@@ -250,11 +346,21 @@ public class PostListingFragment extends Fragment {
             return;
         }
         product.setSeller_id(sellerId);
-        product.setStatus(DomainConstants.ProductStatus.ACTIVE);
-        product.setCondition(rgCondition.getCheckedRadioButtonId() == R.id.rbNew
-                ? DomainConstants.ProductCondition.NEW
-                : DomainConstants.ProductCondition.USED);
+        product.setStatus("active");
+        product.setCondition(rgCondition.getCheckedRadioButtonId() == R.id.rbNew ? "NEW" : "USED");
 
         viewModel.submitProduct(product);
+    }
+
+    private String selectedCategoryName() {
+        if (selectedCategoryId == null) {
+            return null;
+        }
+        for (Category category : categoryList) {
+            if (category != null && selectedCategoryId.equals(category.getId())) {
+                return category.getName();
+            }
+        }
+        return null;
     }
 }

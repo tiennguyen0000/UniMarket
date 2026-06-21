@@ -1,11 +1,14 @@
 package com.example.unimarket.pages.home;
 
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.ColorDrawable;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.PopupWindow;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -22,8 +25,6 @@ import com.example.unimarket.data.model.Product;
 import com.example.unimarket.data.model.Wishlist;
 import com.example.unimarket.data.service.WishlistService;
 import com.example.unimarket.data.service.base.AsyncCrudService;
-import com.example.unimarket.data.util.FirestoreIds;
-import com.example.unimarket.data.util.TimeUtils;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 
@@ -31,6 +32,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -43,14 +45,30 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
         void onProductDetailClick(Product product, String imageUrl, String categoryName);
     }
 
+    public interface OnAddToCartClickListener {
+        void onAddToCartClick(Product product);
+    }
+
+    public interface OnAdminRemoveClickListener {
+        void onAdminRemoveClick(Product product);
+    }
+
+    public interface OnFavoriteChangedListener {
+        void onFavoriteChanged(String productId, boolean saved);
+    }
+
     private final List<Product> items = new ArrayList<>();
     private final Map<String, String> categoryNameMap = new HashMap<>();
-    private final Map<String, String> productImageMap = new HashMap<>();
     private final Map<String, String> sellerAvatarMap = new HashMap<>();
     private final Set<String> favoriteIds = new HashSet<>();
     private final OnProductClickListener clickListener;
     private final OnProductDetailClickListener detailClickListener;
+    private final OnAddToCartClickListener addToCartClickListener;
     private final WishlistService wishlistService = new WishlistService();
+    private boolean adminModerationEnabled;
+    private String currentUserId;
+    private OnAdminRemoveClickListener adminRemoveClickListener;
+    private OnFavoriteChangedListener favoriteChangedListener;
 
     public ProductAdapter(List<Product> initialItems, Map<String, String> initialCategoryNames,
                           OnProductClickListener clickListener) {
@@ -60,6 +78,13 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
     public ProductAdapter(List<Product> initialItems, Map<String, String> initialCategoryNames,
                           OnProductClickListener clickListener,
                           OnProductDetailClickListener detailClickListener) {
+        this(initialItems, initialCategoryNames, clickListener, detailClickListener, null);
+    }
+
+    public ProductAdapter(List<Product> initialItems, Map<String, String> initialCategoryNames,
+                          OnProductClickListener clickListener,
+                          OnProductDetailClickListener detailClickListener,
+                          OnAddToCartClickListener addToCartClickListener) {
         if (initialItems != null) {
             items.addAll(initialItems);
         }
@@ -68,6 +93,7 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
         }
         this.clickListener = clickListener;
         this.detailClickListener = detailClickListener;
+        this.addToCartClickListener = addToCartClickListener;
     }
 
     public void submitList(List<Product> newItems) {
@@ -86,20 +112,32 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
         notifyDataSetChanged();
     }
 
-    public void setProductImageMap(Map<String, String> newProductImageMap) {
-        productImageMap.clear();
-        if (newProductImageMap != null) {
-            productImageMap.putAll(newProductImageMap);
-        }
-        notifyDataSetChanged();
-    }
-
     public void setSellerAvatarMap(Map<String, String> newSellerAvatarMap) {
         sellerAvatarMap.clear();
         if (newSellerAvatarMap != null) {
             sellerAvatarMap.putAll(newSellerAvatarMap);
         }
         notifyDataSetChanged();
+    }
+
+    public void setAdminModeration(boolean enabled, String currentUserId,
+                                   OnAdminRemoveClickListener listener) {
+        this.adminModerationEnabled = enabled;
+        this.currentUserId = currentUserId;
+        this.adminRemoveClickListener = listener;
+        notifyDataSetChanged();
+    }
+
+    public void setFavoriteIds(Set<String> ids) {
+        favoriteIds.clear();
+        if (ids != null) {
+            favoriteIds.addAll(ids);
+        }
+        notifyDataSetChanged();
+    }
+
+    public void setOnFavoriteChangedListener(OnFavoriteChangedListener listener) {
+        this.favoriteChangedListener = listener;
     }
 
     @NonNull
@@ -127,8 +165,8 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
         private final TextView tvName;
         private final TextView tvMeta;
         private final TextView tvPrice;
-        private final TextView tvFavorite;
         private final TextView tvAdd;
+        private final ImageView ivProductMenu;
 
         ProductViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -139,8 +177,8 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
             tvName = itemView.findViewById(R.id.tvProductName);
             tvMeta = itemView.findViewById(R.id.tvProductMeta);
             tvPrice = itemView.findViewById(R.id.tvProductPrice);
-            tvFavorite = itemView.findViewById(R.id.tvProductFavorite);
             tvAdd = itemView.findViewById(R.id.tvAddProduct);
+            ivProductMenu = itemView.findViewById(R.id.ivProductMenu);
         }
 
         void bind(Product product) {
@@ -161,13 +199,101 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
             ));
             tvPrice.setText(HomeUiUtils.formatPrice(product != null ? product.getPrice() : null));
 
-            boolean isFavorite = product != null && product.getId() != null && favoriteIds.contains(product.getId());
-            tvFavorite.setText(isFavorite ? "❤" : "♡");
-            tvFavorite.setTextColor(isFavorite ? 0xFFE34F4F : 0xFF98A2B3);
-
-            tvFavorite.setOnClickListener(v -> toggleFavorite(product));
-            tvAdd.setOnClickListener(v -> notifyProductDetailClick(product, imageUrl, categoryName));
+            bindProductMenu(product);
+            tvAdd.setOnClickListener(v -> {
+                if (addToCartClickListener != null && product != null) {
+                    addToCartClickListener.onAddToCartClick(product);
+                } else {
+                    notifyProductDetailClick(product, imageUrl, categoryName);
+                }
+            });
             itemView.setOnClickListener(v -> notifyProductDetailClick(product, imageUrl, categoryName));
+        }
+
+        private void bindProductMenu(Product product) {
+            boolean show = product != null && !TextUtils.isEmpty(product.getId());
+            ivProductMenu.setVisibility(show ? View.VISIBLE : View.GONE);
+            ivProductMenu.setOnClickListener(show ? v -> showProductMenu(product) : null);
+        }
+
+        private boolean canAdminRemove(Product product) {
+            return adminModerationEnabled
+                    && adminRemoveClickListener != null
+                    && product != null
+                    && !TextUtils.isEmpty(product.getId())
+                    && !TextUtils.isEmpty(product.getSeller_id())
+                    && !product.getSeller_id().equals(currentUserId)
+                    && isActiveProduct(product);
+        }
+
+        private void showProductMenu(Product product) {
+            LayoutInflater inflater = LayoutInflater.from(itemView.getContext());
+            LinearLayout content = (LinearLayout) inflater.inflate(R.layout.popup_product_menu, null, false);
+            PopupWindow popupWindow = new PopupWindow(
+                    content,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    true
+            );
+            popupWindow.setBackgroundDrawable(new ColorDrawable(android.graphics.Color.TRANSPARENT));
+            popupWindow.setOutsideTouchable(true);
+            popupWindow.setElevation(dpToPx(10));
+
+            addMenuAction(
+                    inflater,
+                    content,
+                    isFavoriteProduct(product) ? "Bỏ lưu" : "Lưu tin",
+                    v -> {
+                        popupWindow.dismiss();
+                        toggleFavorite(product);
+                    }
+            );
+            if (canAdminRemove(product)) {
+                addMenuAction(
+                        inflater,
+                        content,
+                        "Gỡ bài",
+                        v -> {
+                            popupWindow.dismiss();
+                            adminRemoveClickListener.onAdminRemoveClick(product);
+                        }
+                );
+            }
+
+            content.measure(
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+            );
+            int xOff = ivProductMenu.getWidth() - content.getMeasuredWidth();
+            popupWindow.showAsDropDown(ivProductMenu, xOff, dpToPx(2));
+        }
+
+        private void addMenuAction(LayoutInflater inflater, LinearLayout container,
+                                   String title, View.OnClickListener listener) {
+            TextView actionView = (TextView) inflater.inflate(
+                    R.layout.item_product_menu_action,
+                    container,
+                    false
+            );
+            actionView.setText(title);
+            actionView.setOnClickListener(listener);
+            container.addView(actionView);
+        }
+
+        private boolean isFavoriteProduct(Product product) {
+            return product != null
+                    && !TextUtils.isEmpty(product.getId())
+                    && favoriteIds.contains(product.getId());
+        }
+
+        private boolean isActiveProduct(Product product) {
+            String status = product.getStatus() != null
+                    ? product.getStatus().trim().toLowerCase(Locale.ROOT)
+                    : "active";
+            return status.isEmpty()
+                    || status.equals("active")
+                    || status.equals("available")
+                    || status.equals("pending");
         }
 
         private void bindProductImage(String imageUrl, String categoryName) {
@@ -244,7 +370,7 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
                 return;
             }
 
-            tvFavorite.setEnabled(false);
+            ivProductMenu.setEnabled(false);
             wishlistService.getWithFilter("user_id", user.getUid(), new AsyncCrudService.ListCallback<Wishlist>() {
                 @Override
                 public void onSuccess(List<Wishlist> data) {
@@ -258,7 +384,7 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
 
                 @Override
                 public void onError(String error) {
-                    tvFavorite.setEnabled(true);
+                    ivProductMenu.setEnabled(true);
                     Toast.makeText(itemView.getContext(), "Không thể cập nhật lưu tin: " + error,
                             Toast.LENGTH_SHORT).show();
                 }
@@ -279,16 +405,16 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
 
         private void saveWishlist(String userId, String productId) {
             Wishlist wishlist = new Wishlist();
-            wishlist.setId(FirestoreIds.stableDocId("wishlist", userId, productId));
+            wishlist.setId(stableDocId("wishlist", userId, productId));
             wishlist.setUser_id(userId);
             wishlist.setProduct_id(productId);
-            wishlist.setCreated_at(TimeUtils.nowIsoUtc());
+            wishlist.setCreated_at(nowIsoUtc());
             wishlistService.save(wishlist, result -> {
-                tvFavorite.setEnabled(true);
+                ivProductMenu.setEnabled(true);
                 if (result.isSuccess()) {
                     favoriteIds.add(productId);
+                    notifyFavoriteChanged(productId, true);
                     notifyCurrentItemChanged();
-                    Toast.makeText(itemView.getContext(), "Đã lưu sản phẩm", Toast.LENGTH_SHORT).show();
                 } else {
                     Toast.makeText(itemView.getContext(), "Lưu thất bại: " + result.getError(), Toast.LENGTH_SHORT).show();
                 }
@@ -299,15 +425,15 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
             wishlistService.deleteById(wishlist.getId(), new AsyncCrudService.BooleanCallback() {
                 @Override
                 public void onSuccess(boolean success) {
-                    tvFavorite.setEnabled(true);
+                    ivProductMenu.setEnabled(true);
                     favoriteIds.remove(productId);
+                    notifyFavoriteChanged(productId, false);
                     notifyCurrentItemChanged();
-                    Toast.makeText(itemView.getContext(), "Đã bỏ lưu sản phẩm", Toast.LENGTH_SHORT).show();
                 }
 
                 @Override
                 public void onError(String error) {
-                    tvFavorite.setEnabled(true);
+                    ivProductMenu.setEnabled(true);
                     Toast.makeText(itemView.getContext(), "Bỏ lưu thất bại: " + error, Toast.LENGTH_SHORT).show();
                 }
             });
@@ -317,6 +443,12 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
             int position = getBindingAdapterPosition();
             if (position != RecyclerView.NO_POSITION) {
                 notifyItemChanged(position);
+            }
+        }
+
+        private void notifyFavoriteChanged(String productId, boolean saved) {
+            if (favoriteChangedListener != null && !TextUtils.isEmpty(productId)) {
+                favoriteChangedListener.onFavoriteChanged(productId, saved);
             }
         }
 
@@ -334,13 +466,31 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
             if (product == null) {
                 return null;
             }
-            if (product.getId() != null && !TextUtils.isEmpty(productImageMap.get(product.getId()))) {
-                return productImageMap.get(product.getId());
-            }
             if (product.getImage_urls() != null && !product.getImage_urls().isEmpty()) {
                 return product.getImage_urls().get(0);
             }
             return null;
         }
+    }
+
+    private String nowIsoUtc() {
+        java.text.SimpleDateFormat format = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
+        format.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+        return format.format(new java.util.Date());
+    }
+
+    private String stableDocId(String... parts) {
+        StringBuilder builder = new StringBuilder();
+        for (String part : parts) {
+            if (builder.length() > 0) {
+                builder.append('_');
+            }
+            builder.append(part != null ? part : "item");
+        }
+        return builder.toString().replaceAll("[^A-Za-z0-9_-]", "_");
+    }
+
+    private int dpToPx(int dp) {
+        return Math.round(dp * android.content.res.Resources.getSystem().getDisplayMetrics().density);
     }
 }

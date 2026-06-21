@@ -4,133 +4,129 @@ import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
-import com.example.unimarket.data.DomainConstants;
 import com.example.unimarket.data.model.Order;
-import com.example.unimarket.data.service.CheckoutService;
+import com.example.unimarket.data.model.User;
 import com.example.unimarket.data.service.OrderService;
+import com.example.unimarket.data.service.UserService;
 import com.example.unimarket.data.service.base.AsyncCrudService;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
-import java.util.Map;
 
 public class OrdersViewModel extends ViewModel {
     private final OrderService orderService = new OrderService();
-    private final CheckoutService checkoutService = new CheckoutService();
+    private final UserService userService = new UserService();
 
-    private final MutableLiveData<List<Order>> allOrders = new MutableLiveData<>(new ArrayList<>());
+    private final MutableLiveData<List<Order>> buyerOrders = new MutableLiveData<>(new ArrayList<>());
+    private final MutableLiveData<List<Order>> sellerOrders = new MutableLiveData<>(new ArrayList<>());
+    private final MutableLiveData<User> currentProfile = new MutableLiveData<>();
     private final MutableLiveData<Boolean> isLoading = new MutableLiveData<>(false);
     private final MutableLiveData<String> errorMessage = new MutableLiveData<>();
 
-    public LiveData<List<Order>> getAllOrders() { return allOrders; }
+    public LiveData<List<Order>> getBuyerOrders() { return buyerOrders; }
+    public LiveData<List<Order>> getSellerOrders() { return sellerOrders; }
+    public LiveData<User> getCurrentProfile() { return currentProfile; }
     public LiveData<Boolean> getIsLoading() { return isLoading; }
     public LiveData<String> getErrorMessage() { return errorMessage; }
 
     public void loadOrders(String userId) {
         if (userId == null) return;
-        isLoading.setValue(true);
-        errorMessage.setValue(null);
 
-        Map<String, Order> merged = new LinkedHashMap<>();
-        final int[] pending = {2};
-        AsyncCrudService.ListCallback<Order> callback = new AsyncCrudService.ListCallback<Order>() {
+        isLoading.setValue(true);
+        userService.getProfileById(userId, new AsyncCrudService.ItemCallback<User>() {
             @Override
-            public void onSuccess(List<Order> data) {
-                if (data != null) {
-                    for (Order order : data) {
-                        if (order != null && order.getId() != null) {
-                            merged.put(order.getId(), order);
-                        }
-                    }
-                }
-                finishLoad(merged, pending, null);
+            public void onSuccess(User profile) {
+                currentProfile.setValue(profile);
+                loadBuyerAndSellerOrders(userId);
             }
 
             @Override
             public void onError(String error) {
-                finishLoad(merged, pending, error);
-            }
-        };
-
-        orderService.getOrdersByBuyerId(userId, callback);
-        orderService.getOrdersBySellerId(userId, callback);
-    }
-
-    public void updateOrderStatus(String orderId, String actorId, String nextStatus) {
-        isLoading.setValue(true);
-        checkoutService.updateOrderStatus(orderId, actorId, nextStatus, result -> {
-            isLoading.setValue(false);
-            if (result.isSuccess() && result.getData() != null) {
-                replaceOrder(result.getData());
-            } else {
-                errorMessage.setValue(result.getError());
+                currentProfile.setValue(null);
+                loadBuyerAndSellerOrders(userId);
             }
         });
     }
 
-    private void replaceOrder(Order updatedOrder) {
-        List<Order> current = new ArrayList<>(
-                allOrders.getValue() != null ? allOrders.getValue() : new ArrayList<>());
-        boolean replaced = false;
-        for (int i = 0; i < current.size(); i++) {
-            Order order = current.get(i);
-            if (order != null && updatedOrder.getId() != null && updatedOrder.getId().equals(order.getId())) {
-                current.set(i, updatedOrder);
-                replaced = true;
-                break;
+    private void loadBuyerAndSellerOrders(String userId) {
+        final int[] pending = {2};
+        final String[] firstError = {null};
+
+        orderService.getOrdersByBuyerId(userId, new AsyncCrudService.ListCallback<Order>() {
+            @Override
+            public void onSuccess(List<Order> data) {
+                buyerOrders.setValue(sorted(data));
+                finishOne();
             }
-        }
-        if (!replaced) {
-            current.add(updatedOrder);
-        }
-        allOrders.setValue(current);
+
+            @Override
+            public void onError(String error) {
+                firstError[0] = error;
+                buyerOrders.setValue(new ArrayList<>());
+                finishOne();
+            }
+
+            private void finishOne() {
+                pending[0]--;
+                if (pending[0] == 0) finishLoad(firstError[0]);
+            }
+        });
+
+        orderService.getOrdersBySellerId(userId, new AsyncCrudService.ListCallback<Order>() {
+            @Override
+            public void onSuccess(List<Order> data) {
+                sellerOrders.setValue(sorted(data));
+                finishOne();
+            }
+
+            @Override
+            public void onError(String error) {
+                firstError[0] = firstError[0] == null ? error : firstError[0];
+                sellerOrders.setValue(new ArrayList<>());
+                finishOne();
+            }
+
+            private void finishOne() {
+                pending[0]--;
+                if (pending[0] == 0) finishLoad(firstError[0]);
+            }
+        });
     }
 
-    private void finishLoad(Map<String, Order> merged, int[] pending, String error) {
-        if (error != null && errorMessage.getValue() == null) {
+    private void finishLoad(String error) {
+        isLoading.setValue(false);
+        if (error != null && isBothListsEmpty()) {
             errorMessage.setValue(error);
         }
-        pending[0]--;
-        if (pending[0] > 0) {
-            return;
-        }
-        isLoading.setValue(false);
-        allOrders.setValue(new ArrayList<>(merged.values()));
     }
 
-    public List<Order> filterByStatus(String filter) {
-        List<Order> all = allOrders.getValue();
-        if (all == null) return new ArrayList<>();
-        if (filter == null || OrderUiFormatter.FILTER_ALL.equals(filter)) return new ArrayList<>(all);
+    public List<Order> ordersForMode(boolean sellerMode, String status) {
+        List<Order> source = sellerMode ? sellerOrders.getValue() : buyerOrders.getValue();
+        if (source == null) return new ArrayList<>();
+        if (status == null) return new ArrayList<>(source);
 
         List<Order> result = new ArrayList<>();
-        for (Order o : all) {
-            if (OrderUiFormatter.matchesFilter(o, filter)) result.add(o);
+        for (Order order : source) {
+            String orderStatus = order != null && order.getStatus() != null ? order.getStatus() : "pending";
+            if (status.equalsIgnoreCase(orderStatus)) result.add(order);
         }
         return result;
     }
 
-    public int countByFilter(String filter) {
-        return filterByStatus(filter).size();
+    private List<Order> sorted(List<Order> orders) {
+        List<Order> result = new ArrayList<>();
+        if (orders != null) result.addAll(orders);
+        result.sort((left, right) -> safe(right.getCreated_at()).compareTo(safe(left.getCreated_at())));
+        return result;
     }
 
-    public String nextActionForUser(Order order, String userId) {
-        if (order == null || userId == null) return null;
-        String status = order.getStatus() != null
-                ? order.getStatus().toLowerCase(Locale.ROOT)
-                : DomainConstants.OrderStatus.PENDING;
-        boolean isSeller = userId.equals(order.getSeller_id());
-        boolean isBuyer = userId.equals(order.getBuyer_id());
-        if (isSeller && DomainConstants.OrderStatus.PENDING.equals(status)) return DomainConstants.OrderStatus.CONFIRMED;
-        if (isSeller && DomainConstants.OrderStatus.CONFIRMED.equals(status)) return DomainConstants.OrderStatus.SHIPPING;
-        if (isSeller && DomainConstants.OrderStatus.SHIPPING.equals(status)) return DomainConstants.OrderStatus.DONE;
-        if ((isBuyer || isSeller)
-                && (DomainConstants.OrderStatus.PENDING.equals(status)
-                || DomainConstants.OrderStatus.CONFIRMED.equals(status))) {
-            return DomainConstants.OrderStatus.CANCELLED;
-        }
-        return null;
+    private boolean isBothListsEmpty() {
+        List<Order> buying = buyerOrders.getValue();
+        List<Order> selling = sellerOrders.getValue();
+        return (buying == null || buying.isEmpty()) && (selling == null || selling.isEmpty());
+    }
+
+    private String safe(String value) {
+        return value != null ? value : "";
     }
 }

@@ -17,6 +17,6 @@ public class HomeViewModelTest {
         assertFalse(state.isLoading());
         assertNotNull(state.getCategories());
         assertNotNull(state.getProducts());
-        assertNotNull(state.getProductImages());
+        assertNotNull(state.getSellerAvatars());
     }
 }

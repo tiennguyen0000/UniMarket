@@ -36,4 +36,25 @@
         <item name="cardBackgroundColor">@color/white</item>
         <item name="strokeColor">#EAECF0</item>
     </style>
+
+    <style name="ThemeOverlay.UniMarket.OrderPopupMenu" parent="ThemeOverlay.Material3.Light">
+        <item name="popupMenuStyle">@style/Widget.UniMarket.OrderPopupMenu</item>
+        <item name="android:textColorPrimary">@color/text_primary</item>
+    </style>
+
+    <style name="Widget.UniMarket.OrderPopupMenu" parent="Widget.AppCompat.PopupMenu.Overflow">
+        <item name="android:popupBackground">@drawable/bg_order_popup_menu</item>
+        <item name="android:dropDownHorizontalOffset">-8dp</item>
+        <item name="android:dropDownVerticalOffset">6dp</item>
+        <item name="textAppearanceLargePopupMenu">@style/TextAppearance.UniMarket.OrderPopupMenu</item>
+        <item name="textAppearanceSmallPopupMenu">@style/TextAppearance.UniMarket.OrderPopupMenu</item>
+        <item name="overlapAnchor">false</item>
+    </style>
+
+    <style name="TextAppearance.UniMarket.OrderPopupMenu" parent="TextAppearance.Material3.BodyLarge">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+
 </resources>

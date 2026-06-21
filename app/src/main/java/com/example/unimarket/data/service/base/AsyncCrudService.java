@@ -2,6 +2,7 @@ package com.example.unimarket.data.service.base;
 
 import android.util.Log;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.SetOptions;
 import java.util.ArrayList;
@@ -53,6 +54,10 @@ public class AsyncCrudService {
     }
 
     private static String buildErrorMessage(Exception e) {
+        if (e instanceof FirebaseFirestoreException
+                && ((FirebaseFirestoreException) e).getCode() == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+            return "Bạn không có quyền thực hiện thao tác này.";
+        }
         return e != null && e.getMessage() != null ? e.getMessage() : "Unknown error";
     }
 

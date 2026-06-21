@@ -1,93 +1,190 @@
 # UniMarket
 
-Ứng dụng Android hỗ trợ sinh viên mua bán, trao đổi đồ dùng học tập và thiết bị cá nhân trong môi trường đại học.
+UniMarket là ứng dụng Android dành cho sinh viên mua bán và trao đổi đồ dùng trong môi trường đại học. Dự án tập trung vào luồng giao dịch nội bộ campus: đăng tin, tìm kiếm sản phẩm, nhắn tin với người bán, thêm vào giỏ, đặt hàng, theo dõi đơn và quản lý hồ sơ người dùng.
 
-## Kiến trúc hiện tại
+## Highlights
 
-Dự án đang dùng kiến trúc theo hướng phân tầng nhẹ:
+- Xây dựng native Android với Java và Material Components
+- Dùng Firebase Authentication, Cloud Firestore, Firebase Storage và Firebase Analytics
+- Hỗ trợ flow mua bán tương đối đầy đủ: listing -> search -> wishlist/cart -> checkout -> orders -> chat -> review
+- Có lớp kiểm soát quyền theo vai trò và xác thực sinh viên
+- Có khu vực quản trị cho kiểm duyệt người dùng và yêu cầu xác minh
 
-- **Presentation layer**
-  - `Activity`/`Fragment` cho UI và điều hướng.
-  - `ViewModel` cho state và xử lý luồng dữ liệu ở các màn đã chuẩn hóa (`Home`, `Profile`).
-  - Mẫu state/event:
-    - `UiState`: trạng thái màn hình.
-    - `UiEvent`: sự kiện một lần (thông báo, lỗi,...).
-- **Data layer**
-  - `data/model`: các model domain (`User`, `Product`, `Order`,...).
-  - `data/service`: service theo từng entity (`UserService`, `ProductService`,...).
-  - `data/service/base`:
-    - `AsyncCrudService`: CRUD bất đồng bộ với Firebase Firestore.
-    - `BaseCrudService`: base service chuẩn hóa API.
-    - `Result`/`ResultCallback`: kiểu kết quả thống nhất cho data flow.
+## Feature Set
 
-## Công nghệ
+### 1. Authentication & Onboarding
 
-- **Ngôn ngữ:** Java 11 (Android)
-- **Backend:** Firebase
-  - Firebase Authentication (email/password, Google Sign-In)
-  - Cloud Firestore
-  - Firebase Analytics
-- **UI/Navigation**
-  - AndroidX Navigation Component
-  - RecyclerView
-  - Material Components
-  - Glide (image loading)
-- **Kiểm thử**
-  - JUnit (unit test)
+- Onboarding cho người dùng mới
+- Đăng ký, đăng nhập, quên mật khẩu, xác minh email
+- Hỗ trợ Google Sign-In trong flow xác thực
 
-## Cấu trúc thư mục
+### 2. Marketplace Listing
+
+- Đăng tin bán sản phẩm với tiêu đề, mô tả, giá, tình trạng và danh mục
+- Upload nhiều ảnh sản phẩm lên Firebase Storage
+- Kiểm tra quyền đăng tin dựa trên hồ sơ người dùng và trạng thái xác thực
+
+### 3. Browse & Search
+
+- Trang chủ hiển thị danh mục và entry points tới các luồng chính
+- Màn tìm kiếm có lọc danh mục và các tiêu chí liên quan
+- Hỗ trợ mở chi tiết sản phẩm qua bottom sheet
+
+### 4. Product Detail & Engagement
+
+- Xem chi tiết sản phẩm, hình ảnh, mô tả, tình trạng
+- Thêm/xóa wishlist
+- Xem và gửi đánh giá
+- Nhắn tin trực tiếp với người bán từ chi tiết sản phẩm
+
+### 5. Cart & Checkout
+
+- Thêm sản phẩm vào giỏ
+- Mở cart bottom sheet và quản lý line items
+- Tạo đơn hàng từ sản phẩm
+- Áp dụng discount code trong flow thanh toán
+- Đồng bộ trạng thái sản phẩm và đơn hàng sau checkout
+
+### 6. Orders
+
+- Theo dõi đơn mua và đơn bán
+- Lọc theo trạng thái
+- Cập nhật vòng đời đơn hàng theo vai trò buyer/seller
+- Mở lại chat hoặc mua lại từ order flow
+
+### 7. Chat & Notifications
+
+- Chat theo conversation gắn với sản phẩm
+- Inbox hội thoại qua bottom sheet
+- Tạo thông báo cho tin nhắn và cập nhật đơn hàng
+- Badge thông báo chưa đọc ở giao diện chính
+
+### 8. Profile, Verification & Admin
+
+- Quản lý hồ sơ cá nhân
+- Xem bài đăng, đơn hàng và sản phẩm đã lưu
+- Gửi yêu cầu xác thực sinh viên
+- Admin console cho reviewer/moderator quản lý người dùng và verification requests
+
+## Tech Stack
+
+- Language: Java 11 cho Android source compatibility
+- UI: Android Views, Material Components, RecyclerView, BottomSheet, Navigation Component
+- Architecture: Activity/Fragment + ViewModel + service layer
+- Backend: Firebase Authentication, Cloud Firestore, Firebase Storage, Firebase Analytics
+- Image loading: Glide
+- Testing: JUnit
+
+## Architecture Overview
+
+Dự án đang dùng kiến trúc phân tầng nhẹ, ưu tiên dễ đọc và dễ mở rộng trong bối cảnh app Android dùng Firebase trực tiếp.
+
+- Presentation layer
+  - `Activity`, `Fragment`, `BottomSheetDialogFragment`
+  - `ViewModel` cho các màn đã được chuẩn hóa state
+  - Một số màn dùng `UiState` / `UiEvent` để tách state hiển thị và one-time events
+- Data layer
+  - `data/model` chứa các domain model như `User`, `Product`, `Order`, `Review`, `Notification`
+  - `data/service` chứa service theo từng entity và các service orchestration như `CheckoutService`
+  - `data/service/base` chứa `BaseCrudService`, `AsyncCrudService`, `Result`, `ResultCallback`
+- Access & rules layer
+  - `auth/AccessControl.java`
+  - `firestore.rules`
+  - `storage.rules`
+
+## Project Structure
 
 ```text
 app/src/main/java/com/example/unimarket/
-├── auth/                     # Login/Register/Verify/Forgot Password
+├── auth/                    # Login, register, onboarding, access control
 ├── data/
-│   ├── model/                # Data models
-│   └── service/
-│       ├── base/             # AsyncCrudService, BaseCrudService, Result
-│       └── ...               # UserService, ProductService, ...
+│   ├── model/               # User, Product, Order, Cart, Review, ...
+│   ├── service/             # CRUD services + CheckoutService
+│   └── util/                # TimeUtils, FirestoreIds, constants helpers
 ├── pages/
-│   ├── home/                 # HomeFragment + HomeViewModel + HomeUiState/Event
-│   ├── profile/              # ProfileFragment + ProfileViewModel + ProfileUiState/Event
-│   ├── search/
-│   └── orders/
-├── Controller.java           # Host bottom navigation
-├── MainActivity.java         # Entry routing (onboarding/auth/main flow)
-└── OnboardingActivity.java
+│   ├── home/                # Home, product detail, cart, notifications
+│   ├── search/              # Search and filters
+│   ├── post/                # Create listing
+│   ├── orders/              # Buyer/seller order flows
+│   ├── chat/                # Product conversations and inbox
+│   └── profile/             # Profile, verification, admin console
+├── Controller.java          # Main host with bottom navigation
+└── MainActivity.java        # Entry flow
 ```
 
-## Luồng chính
+## Backend Notes
 
-- Mở app -> `MainActivity` quyết định flow (onboarding/auth/main).
-- Đăng nhập/đăng ký qua Firebase Auth.
-- Sau auth, profile người dùng đồng bộ lên Firestore collection `profiles`.
-- Các màn feature đọc/ghi dữ liệu qua `service` và `AsyncCrudService`.
+- Firestore được dùng làm nguồn dữ liệu chính cho:
+  - `profiles`
+  - `products`
+  - `carts`, `cart_items`
+  - `orders`, `order_items`
+  - `conversations`, `messages`
+  - `notifications`
+  - `wishlist`
+  - `reviews`
+  - `student_verifications`
+  - `reports`, `user_behavior`, `discount_codes`
+- Firebase Storage được dùng cho ảnh sản phẩm và avatar
+- Quyền truy cập dữ liệu được định nghĩa tại:
+  - [firestore.rules](/mnt/c/Git/Android/UniMarket/firestore.rules)
+  - [storage.rules](/mnt/c/Git/Android/UniMarket/storage.rules)
 
-## Thiết lập và chạy dự án
+## Getting Started
 
-### Yêu cầu
+### Requirements
 
-- Android Studio (khuyến nghị bản mới)
-- JDK 11
-- Android SDK theo cấu hình trong `app/build.gradle.kts`
+- Android Studio bản mới
+- JDK phù hợp với Android Gradle Plugin
+- Android SDK theo cấu hình Gradle hiện tại
+- Firebase project để cấp Auth / Firestore / Storage
 
-### Cấu hình Firebase
+### Firebase Setup
 
-1. Tạo Firebase project.
-2. Bật **Authentication** (Email/Password, Google nếu cần).
-3. Bật **Cloud Firestore**.
-4. Tải `google-services.json` và đặt vào:
-   - `app/google-services.json`
-5. Đảm bảo `default_web_client_id` đúng cho Google Sign-In (nếu dùng).
+1. Tạo Firebase project
+2. Bật các dịch vụ cần dùng:
+   - Authentication
+   - Cloud Firestore
+   - Firebase Storage
+   - Analytics nếu muốn theo dõi sự kiện
+3. Thêm Android app vào Firebase project
+4. Đặt `google-services.json` vào:
 
-### Build
+```text
+app/google-services.json
+```
 
-- Build debug:
-  - `./gradlew :app:assembleDebug`
-- Compile Java:
-  - `./gradlew :app:compileDebugJavaWithJavac`
-- Run unit tests:
-  - `./gradlew :app:testDebugUnitTest`
+5. Kiểm tra lại cấu hình SHA, OAuth client và `default_web_client_id` nếu dùng Google Sign-In
 
+### Local Setup
 
+1. Clone repo
+2. Mở bằng Android Studio
+3. Kiểm tra `local.properties` trỏ đúng Android SDK
+4. Sync Gradle
 
+### Useful Commands
+
+```bash
+./gradlew :app:assembleDebug
+./gradlew :app:compileDebugJavaWithJavac
+./gradlew :app:testDebugUnitTest
+```
+
+## Current Scope
+
+Repo hiện đã bao phủ phần lớn flow marketplace trong campus, nhưng vẫn thiên về application prototype / academic product hơn là production-hardened system.
+
+Một số điểm cần lưu ý:
+
+- Business rules đang nằm khá nhiều ở tầng client + Firestore rules
+- Chưa có backend riêng ngoài Firebase
+- Kiểm thử hiện mới tập trung ở mức unit test cơ bản
+- Một số màn vẫn theo style Android View truyền thống thay vì architecture tách sâu hơn
+
+## Why This Project Stands Out
+
+- Không chỉ dừng ở CRUD listing cơ bản mà có cả cart, checkout, orders, chat và notifications
+- Có mô hình role/verification giúp luồng đăng bán sát bài toán thực tế hơn
+- Có admin console và moderation-oriented access control, hiếm hơn ở các đồ án marketplace Android cơ bản
 

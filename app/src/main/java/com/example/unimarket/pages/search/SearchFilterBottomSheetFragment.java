@@ -26,8 +26,6 @@ public class SearchFilterBottomSheetFragment extends BottomSheetDialogFragment {
     private EditText etPriceTo;
     private CheckBox cbNew;
     private CheckBox cbUsed;
-    private CheckBox cbFreeShip;
-    private CheckBox cbFastShip;
     private TextView tvFilterSummary;
 
     private double initialMinPrice;
@@ -38,8 +36,7 @@ public class SearchFilterBottomSheetFragment extends BottomSheetDialogFragment {
     private FilterListener filterListener;
 
     public interface FilterListener {
-        void onApplyFilter(double minPrice, double maxPrice, boolean filterNew, boolean filterUsed,
-                           boolean filterFreeShip, boolean filterFastShip);
+        void onApplyFilter(double minPrice, double maxPrice, boolean filterNew, boolean filterUsed);
         void onResetFilter();
     }
 
@@ -85,13 +82,10 @@ public class SearchFilterBottomSheetFragment extends BottomSheetDialogFragment {
         etPriceTo = view.findViewById(R.id.etPriceTo);
         cbNew = view.findViewById(R.id.cbNew);
         cbUsed = view.findViewById(R.id.cbUsed);
-        cbFreeShip = view.findViewById(R.id.cbFreeShip);
-        cbFastShip = view.findViewById(R.id.cbFastShip);
         tvFilterSummary = view.findViewById(R.id.tvFilterSummary);
 
         bindInitialState();
         setupLiveSummary();
-        disableUnsupportedShippingFilters();
         updateFilterSummary();
 
         ImageView closeButton = view.findViewById(R.id.closeButton);
@@ -113,8 +107,6 @@ public class SearchFilterBottomSheetFragment extends BottomSheetDialogFragment {
         }
         cbNew.setChecked(initialFilterNew);
         cbUsed.setChecked(initialFilterUsed);
-        cbFreeShip.setChecked(false);
-        cbFastShip.setChecked(false);
     }
 
     private void setupLiveSummary() {
@@ -171,7 +163,7 @@ public class SearchFilterBottomSheetFragment extends BottomSheetDialogFragment {
         }
 
         if (filterListener != null) {
-            filterListener.onApplyFilter(minPrice, maxPrice, cbNew.isChecked(), cbUsed.isChecked(), false, false);
+            filterListener.onApplyFilter(minPrice, maxPrice, cbNew.isChecked(), cbUsed.isChecked());
         }
 
         dismiss();
@@ -182,8 +174,6 @@ public class SearchFilterBottomSheetFragment extends BottomSheetDialogFragment {
         etPriceTo.setText("");
         cbNew.setChecked(false);
         cbUsed.setChecked(false);
-        cbFreeShip.setChecked(false);
-        cbFastShip.setChecked(false);
         updateFilterSummary();
 
         if (filterListener != null) {
@@ -191,15 +181,6 @@ public class SearchFilterBottomSheetFragment extends BottomSheetDialogFragment {
         }
 
         dismiss();
-    }
-
-    private void disableUnsupportedShippingFilters() {
-        cbFreeShip.setChecked(false);
-        cbFastShip.setChecked(false);
-        cbFreeShip.setEnabled(false);
-        cbFastShip.setEnabled(false);
-        cbFreeShip.setText("Miễn phí ship");
-        cbFastShip.setText("Giao nhanh");
     }
 
     private void updateFilterSummary() {

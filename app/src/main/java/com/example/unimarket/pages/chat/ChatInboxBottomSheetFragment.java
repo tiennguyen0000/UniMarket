@@ -31,7 +31,8 @@ import java.util.Map;
 
 public class ChatInboxBottomSheetFragment extends BottomSheetDialogFragment {
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
-    private final Map<String, Conversation> conversationMap = new LinkedHashMap<>();
+    private final Map<String, Conversation> buyerConversations = new LinkedHashMap<>();
+    private final Map<String, Conversation> sellerConversations = new LinkedHashMap<>();
 
     private ListenerRegistration buyerListener;
     private ListenerRegistration sellerListener;
@@ -102,12 +103,13 @@ public class ChatInboxBottomSheetFragment extends BottomSheetDialogFragment {
                         renderConversations();
                         return;
                     }
+                    buyerConversations.clear();
                     if (snapshots != null) {
                         snapshots.forEach(doc -> {
                             Conversation conversation = doc.toObject(Conversation.class);
                             if (conversation != null) {
                                 conversation.setId(doc.getId());
-                                conversationMap.put(doc.getId(), conversation);
+                                buyerConversations.put(doc.getId(), conversation);
                             }
                         });
                     }
@@ -123,12 +125,13 @@ public class ChatInboxBottomSheetFragment extends BottomSheetDialogFragment {
                         renderConversations();
                         return;
                     }
+                    sellerConversations.clear();
                     if (snapshots != null) {
                         snapshots.forEach(doc -> {
                             Conversation conversation = doc.toObject(Conversation.class);
                             if (conversation != null) {
                                 conversation.setId(doc.getId());
-                                conversationMap.put(doc.getId(), conversation);
+                                sellerConversations.put(doc.getId(), conversation);
                             }
                         });
                     }
@@ -137,12 +140,16 @@ public class ChatInboxBottomSheetFragment extends BottomSheetDialogFragment {
     }
 
     private void renderConversations() {
-        if ((!buyerLoaded || !sellerLoaded) && conversationMap.isEmpty()) {
+        Map<String, Conversation> conversationsById = new LinkedHashMap<>();
+        conversationsById.putAll(buyerConversations);
+        conversationsById.putAll(sellerConversations);
+
+        if ((!buyerLoaded || !sellerLoaded) && conversationsById.isEmpty()) {
             showLoadingState();
             return;
         }
 
-        List<Conversation> conversations = new ArrayList<>(conversationMap.values());
+        List<Conversation> conversations = new ArrayList<>(conversationsById.values());
         conversations.sort(Comparator.comparing(this::sortKey).reversed());
         adapter.submitList(conversations);
 

@@ -128,7 +128,6 @@ public class HomeFragment extends Fragment {
         rvCategories.setAdapter(categoryAdapter);
         rvCategories.addItemDecoration(new GridSpacingItemDecoration(4, dpToPx(8), true));
         isExpandedCategories = false;
-        showCategories(buildDefaultCategories());
     }
 
     private void setupObservers() {
@@ -141,9 +140,7 @@ public class HomeFragment extends Fragment {
 
             categoryList.clear();
             List<Category> categories = state.getCategories();
-            if (categories == null || categories.isEmpty()) {
-                categoryList.addAll(buildDefaultCategories());
-            } else {
+            if (categories != null) {
                 categoryList.addAll(categories);
             }
 
@@ -180,7 +177,7 @@ public class HomeFragment extends Fragment {
             String profileName = normalizeDisplayName(profile.getFull_name());
             String name = !TextUtils.isEmpty(profileName) ? profileName : initialName;
             String avatarUrl = firstNonEmpty(profile.getAvatar_url(), initialAvatarUrl);
-            bindHeaderUser(name, avatarUrl, profile.getUniversity(), profile.is_verified());
+            bindHeaderUser(name, avatarUrl, profile.getUniversity(), profile.isVerified());
         });
     }
 
@@ -466,33 +463,12 @@ public class HomeFragment extends Fragment {
         updateViewAllText();
     }
 
-    private void showCategories(List<Category> categories) {
-        categoryList.clear();
-        if (categories != null) {
-            categoryList.addAll(categories);
-        }
-        showCurrentCategoryMode();
-    }
-
     private void setHomeLoading(boolean loading) {
         if (layoutHomeLoading == null || rvCategories == null) {
             return;
         }
         layoutHomeLoading.setVisibility(loading ? View.VISIBLE : View.GONE);
         rvCategories.setVisibility(loading ? View.GONE : View.VISIBLE);
-    }
-
-    private List<Category> buildDefaultCategories() {
-        List<Category> categories = new ArrayList<>();
-        categories.add(new Category("cat_accessories", "Phụ kiện công nghệ", null));
-        categories.add(new Category("cat_books", "Giáo trình & Sách", null));
-        categories.add(new Category("cat_dorm", "Đồ dùng phòng trọ", null));
-        categories.add(new Category("cat_fashion", "Thời trang sinh viên", null));
-        categories.add(new Category("cat_laptop", "Laptop & Máy tính", null));
-        categories.add(new Category("cat_phone", "Điện thoại", null));
-        categories.add(new Category("cat_sport", "Thể thao & Giải trí", null));
-        categories.add(new Category("cat_stationery", "Dụng cụ học tập", null));
-        return categories;
     }
 
     private void updateViewAllText() {

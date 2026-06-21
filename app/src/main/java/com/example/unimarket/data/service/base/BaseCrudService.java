@@ -1,14 +1,8 @@
 package com.example.unimarket.data.service.base;
 
 import java.util.List;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.UUID;
 
 public abstract class BaseCrudService<T> implements Identifiable<T> {
-    private final Map<String, T> memoryStore = new LinkedHashMap<>();
-
     protected abstract String getTableName();
 
     protected abstract Class<T> getModelClass();
@@ -93,57 +87,5 @@ public abstract class BaseCrudService<T> implements Identifiable<T> {
                 }
             }
         });
-    }
-
-    /**
-     * Legacy synchronous methods kept for existing unit tests.
-     * Production code should use async/result-based APIs.
-     */
-    @Deprecated
-    public synchronized List<T> getAll() {
-        return new ArrayList<>(memoryStore.values());
-    }
-
-    @Deprecated
-    public synchronized T getById(String id) {
-        if (id == null) {
-            return null;
-        }
-        return memoryStore.get(id);
-    }
-
-    @Deprecated
-    public synchronized boolean create(T item) {
-        if (item == null) {
-            return false;
-        }
-        String id = getId(item);
-        if (id == null || id.isEmpty()) {
-            id = UUID.randomUUID().toString();
-            setId(item, id);
-        }
-        memoryStore.put(id, item);
-        return true;
-    }
-
-    @Deprecated
-    public synchronized boolean update(T item) {
-        if (item == null) {
-            return false;
-        }
-        String id = getId(item);
-        if (id == null || !memoryStore.containsKey(id)) {
-            return false;
-        }
-        memoryStore.put(id, item);
-        return true;
-    }
-
-    @Deprecated
-    public synchronized boolean delete(String id) {
-        if (id == null) {
-            return false;
-        }
-        return memoryStore.remove(id) != null;
     }
 }
