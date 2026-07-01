@@ -31,8 +31,10 @@ import com.example.unimarket.auth.AccessControl;
 import com.example.unimarket.data.model.Category;
 import com.example.unimarket.data.model.Product;
 import com.example.unimarket.data.model.User;
+import com.example.unimarket.data.service.ProductService;
 import com.example.unimarket.data.service.UserService;
 import com.example.unimarket.data.service.base.AsyncCrudService;
+import com.example.unimarket.pages.home.HomeViewModel;
 import com.example.unimarket.pages.home.HomeUiUtils;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -44,8 +46,9 @@ import java.util.List;
 
 public class PostListingFragment extends Fragment {
     public static final String RESULT_LISTING_CREATED = "listing_created";
+    public static final String ARG_EDIT_PRODUCT_ID = "edit_product_id";
 
-    private EditText etTitle, etPrice, etDescription;
+    private EditText etTitle, etPrice, etQuantity, etDescription;
     private RadioGroup rgCondition;
     private MaterialButton btnSubmit;
     private View btnUploadImage, btnSelectCategory, ivPreview;
@@ -53,10 +56,14 @@ public class PostListingFragment extends Fragment {
     private LinearLayout layoutImages;
 
     private PostListingViewModel viewModel;
+    private HomeViewModel catalogViewModel;
     private String selectedCategoryId = null;
     private List<Category> categoryList = new ArrayList<>();
     private boolean canPostListing = false;
+    private boolean editMode = false;
+    private Product editingProduct;
     private final UserService userService = new UserService();
+    private final ProductService productService = new ProductService();
 
     private final ActivityResultLauncher<String> pickImagesLauncher = registerForActivityResult(
             new ActivityResultContracts.GetMultipleContents(),
@@ -83,9 +90,11 @@ public class PostListingFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
 
         viewModel = new ViewModelProvider(this).get(PostListingViewModel.class);
+        catalogViewModel = new ViewModelProvider(requireActivity()).get(HomeViewModel.class);
 
         etTitle = view.findViewById(R.id.etTitle);
         etPrice = view.findViewById(R.id.etPrice);
+        etQuantity = view.findViewById(R.id.etQuantity);
         etDescription = view.findViewById(R.id.etDescription);
         rgCondition = view.findViewById(R.id.rgCondition);
         btnSubmit = view.findViewById(R.id.btnSubmit);
@@ -119,10 +128,17 @@ public class PostListingFragment extends Fragment {
                 }
         );
 
+        readEditArgs();
         guardSellAccess();
-        viewModel.loadCategories();
         observeViewModel();
+        catalogViewModel.loadHomeData();
+        loadEditingProductIfNeeded();
         setupListeners();
+    }
+
+    private void readEditArgs() {
+        Bundle args = getArguments();
+        editMode = args != null && !TextUtils.isEmpty(args.getString(ARG_EDIT_PRODUCT_ID));
     }
 
     private void guardSellAccess() {
@@ -178,9 +194,11 @@ public class PostListingFragment extends Fragment {
     }
 
     private void observeViewModel() {
-        viewModel.getCategories().observe(getViewLifecycleOwner(), cats -> {
+        catalogViewModel.getUiState().observe(getViewLifecycleOwner(), state -> {
+            List<Category> cats = state != null ? state.getCategories() : null;
             if (cats != null) {
                 categoryList = cats;
+                bindSelectedCategoryLabel();
             }
         });
 
@@ -191,12 +209,20 @@ public class PostListingFragment extends Fragment {
 
         viewModel.getIsLoading().observe(getViewLifecycleOwner(), loading -> {
             btnSubmit.setEnabled(canPostListing && !loading);
+            if (editMode && !loading) {
+                btnSubmit.setText("Lưu cập nhật");
+            }
             btnSubmit.setText(loading ? "Đang xử lý..." : "Đăng tin ngay");
         });
 
         viewModel.getPostSuccess().observe(getViewLifecycleOwner(), success -> {
             if (Boolean.TRUE.equals(success)) {
+                catalogViewModel.refreshCatalogData();
                 getParentFragmentManager().setFragmentResult(RESULT_LISTING_CREATED, new Bundle());
+                if (editMode) {
+                    NavHostFragment.findNavController(this).popBackStack();
+                    return;
+                }
                 NavHostFragment.findNavController(this).navigate(R.id.profileFragment);
             }
         });
@@ -241,6 +267,64 @@ public class PostListingFragment extends Fragment {
         rgCondition.setOnCheckedChangeListener((group, checkedId) -> tvConditionError.setVisibility(View.GONE));
     }
 
+    private void loadEditingProductIfNeeded() {
+        if (!editMode) {
+            return;
+        }
+        Bundle args = getArguments();
+        String productId = args != null ? args.getString(ARG_EDIT_PRODUCT_ID) : null;
+        if (TextUtils.isEmpty(productId)) {
+            return;
+        }
+        productService.getById(productId, new AsyncCrudService.ItemCallback<Product>() {
+            @Override
+            public void onSuccess(Product data) {
+                if (!isAdded() || data == null) {
+                    return;
+                }
+                FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+                if (user == null || !user.getUid().equals(data.getSeller_id())) {
+                    showSellBlocked("Bạn chỉ có thể cập nhật tin do chính mình đăng.");
+                    return;
+                }
+                editingProduct = data;
+                bindEditingProduct(data);
+            }
+
+            @Override
+            public void onError(String error) {
+                if (isAdded()) {
+                    Toast.makeText(requireContext(), "Không thể tải tin cần cập nhật.", Toast.LENGTH_SHORT).show();
+                    NavHostFragment.findNavController(PostListingFragment.this).popBackStack();
+                }
+            }
+        });
+    }
+
+    private void bindEditingProduct(Product product) {
+        etTitle.setText(product.getTitle() != null ? product.getTitle() : "");
+        etPrice.setText(product.getPrice() != null ? String.valueOf(product.getPrice().longValue()) : "");
+        etQuantity.setText(product.getQuantity() != null ? String.valueOf(product.getQuantity()) : "");
+        etDescription.setText(product.getDescription() != null ? product.getDescription() : "");
+        selectedCategoryId = product.getCategory_id();
+        bindSelectedCategoryLabel();
+        if ("NEW".equalsIgnoreCase(product.getCondition()) || "new".equalsIgnoreCase(product.getCondition())) {
+            rgCondition.check(R.id.rbNew);
+        } else if (!TextUtils.isEmpty(product.getCondition())) {
+            rgCondition.check(R.id.rbUsed);
+        }
+        btnSubmit.setText("Lưu cập nhật");
+        viewModel.setImages(product.getImage_urls());
+    }
+
+    private void bindSelectedCategoryLabel() {
+        String categoryName = selectedCategoryName();
+        if (!TextUtils.isEmpty(categoryName)) {
+            tvCategoryLabel.setText(categoryName);
+            tvCategoryLabel.setTextColor(getResources().getColor(R.color.text_primary));
+        }
+    }
+
     private void showCategoryDialog() {
         if (categoryList.isEmpty()) {
             Toast.makeText(requireContext(), "Đang tải danh mục...", Toast.LENGTH_SHORT).show();
@@ -266,6 +350,7 @@ public class PostListingFragment extends Fragment {
     private void showListingPreview() {
         String title = etTitle.getText() != null ? etTitle.getText().toString().trim() : "";
         String priceStr = etPrice.getText() != null ? etPrice.getText().toString().trim() : "";
+        String quantityStr = etQuantity.getText() != null ? etQuantity.getText().toString().trim() : "";
         String description = etDescription.getText() != null ? etDescription.getText().toString().trim() : "";
         String category = selectedCategoryName();
         String condition = rgCondition.getCheckedRadioButtonId() == R.id.rbNew
@@ -284,6 +369,7 @@ public class PostListingFragment extends Fragment {
 
         String message = "Tiêu đề: " + (title.isEmpty() ? "Chưa nhập" : title)
                 + "\nGiá: " + price
+                + "\nSố lượng: " + (quantityStr.isEmpty() ? "Chưa nhập" : quantityStr)
                 + "\nDanh mục: " + (category != null ? category : "Chưa chọn")
                 + "\nTình trạng: " + condition
                 + "\nẢnh: " + imageCount + "/6"
@@ -304,6 +390,7 @@ public class PostListingFragment extends Fragment {
 
         String title = etTitle.getText().toString().trim();
         String priceStr = etPrice.getText().toString().trim();
+        String quantityStr = etQuantity.getText().toString().trim();
         String description = etDescription.getText().toString().trim();
 
         if (TextUtils.isEmpty(title)) {
@@ -312,6 +399,10 @@ public class PostListingFragment extends Fragment {
         }
         if (TextUtils.isEmpty(priceStr)) {
             etPrice.setError("Vui lòng nhập giá");
+            return;
+        }
+        if (TextUtils.isEmpty(quantityStr)) {
+            etQuantity.setError("Vui lòng nhập số lượng");
             return;
         }
         if (selectedCategoryId == null) {
@@ -325,7 +416,7 @@ public class PostListingFragment extends Fragment {
             return;
         }
 
-        Product product = new Product();
+        Product product = editMode && editingProduct != null ? editingProduct : new Product();
         product.setTitle(title);
         product.setDescription(description);
         product.setCategory_id(selectedCategoryId);
@@ -337,6 +428,17 @@ public class PostListingFragment extends Fragment {
             }
         } catch (NumberFormatException e) {
             etPrice.setError("Giá không hợp lệ");
+            return;
+        }
+        try {
+            int quantity = Integer.parseInt(quantityStr);
+            if (quantity <= 0) {
+                etQuantity.setError("Số lượng phải lớn hơn 0");
+                return;
+            }
+            product.setQuantity(quantity);
+        } catch (NumberFormatException e) {
+            etQuantity.setError("Số lượng không hợp lệ");
             return;
         }
 

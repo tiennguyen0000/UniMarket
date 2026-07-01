@@ -46,6 +46,16 @@ public class CheckoutService {
             }
             product.setId(productSnapshot.getId());
             validatePurchasableProduct(product, request.buyerId);
+            int available = product.getQuantity() != null ? Math.max(0, product.getQuantity()) : 1;
+            DocumentSnapshot existingItem = transaction.get(itemRef);
+            Number existingQuantityNumber = existingItem.exists()
+                    ? (Number) existingItem.get("quantity")
+                    : null;
+            int existingQuantity = existingQuantityNumber != null ? existingQuantityNumber.intValue() : 0;
+            int requestedQuantity = Math.max(1, request.quantity);
+            if (existingQuantity + requestedQuantity > available) {
+                throw new IllegalStateException("Số lượng còn lại chỉ còn " + available + ".");
+            }
 
             String now = TimeUtils.nowIsoUtc();
             Map<String, Object> cartData = new HashMap<>();
@@ -58,7 +68,7 @@ public class CheckoutService {
             itemData.put("id", itemId);
             itemData.put("cart_id", cartId);
             itemData.put("product_id", request.productId);
-            itemData.put("quantity", FieldValue.increment(Math.max(1, request.quantity)));
+            itemData.put("quantity", FieldValue.increment(requestedQuantity));
             transaction.set(itemRef, itemData, SetOptions.merge());
             return true;
         }).addOnSuccessListener(success -> {
@@ -88,9 +98,14 @@ public class CheckoutService {
             }
             product.setId(productSnapshot.getId());
             validatePurchasableProduct(product, request.buyerId);
+            int available = product.getQuantity() != null ? Math.max(0, product.getQuantity()) : 1;
+            int requestedQuantity = Math.max(1, request.quantity);
+            if (requestedQuantity > available) {
+                throw new IllegalStateException("Số lượng còn lại chỉ còn " + available + ".");
+            }
 
             double unitPrice = product.getPrice() != null ? product.getPrice() : 0d;
-            double subtotal = unitPrice * Math.max(1, request.quantity);
+            double subtotal = unitPrice * requestedQuantity;
             double discountAmount = 0d;
             String discountCode = null;
 
@@ -120,8 +135,11 @@ public class CheckoutService {
             order.setProduct_id(product.getId());
             order.setProduct_title(product.getTitle());
             order.setProduct_image_url(request.productImageUrl);
-            order.setQuantity(Math.max(1, request.quantity));
+            order.setQuantity(requestedQuantity);
             order.setUnit_price(unitPrice);
+            order.setSubtotal_price(subtotal);
+            order.setShipping_fee(0d);
+            order.setSeller_amount(subtotal);
             order.setDiscount_code(discountCode);
             order.setDiscount_amount(discountAmount);
             order.setTotal_price(Math.max(0d, subtotal - discountAmount));
@@ -139,9 +157,6 @@ public class CheckoutService {
 
             transaction.set(orderRef, order);
             transaction.set(orderItemRef, item);
-            transaction.update(productRef,
-                    "status", DomainConstants.ProductStatus.PENDING,
-                    "updated_at", now);
             setOrderNotification(transaction, product.getSeller_id(), order.getId(),
                     "Có đơn hàng mới",
                     "Một người mua vừa đặt " + safeProductTitle(product) + ".",
@@ -188,10 +203,18 @@ public class CheckoutService {
             if (!TextUtils.isEmpty(order.getProduct_id())) {
                 DocumentReference productRef = db.collection(DomainConstants.Collections.PRODUCTS)
                         .document(order.getProduct_id());
-                if (DomainConstants.OrderStatus.CANCELLED.equals(normalizedStatus)) {
-                    transaction.update(productRef, "status", DomainConstants.ProductStatus.ACTIVE, "updated_at", now);
-                } else if (DomainConstants.OrderStatus.DONE.equals(normalizedStatus)) {
-                    transaction.update(productRef, "status", DomainConstants.ProductStatus.SOLD, "updated_at", now);
+                if (DomainConstants.OrderStatus.DONE.equals(normalizedStatus)) {
+                    DocumentSnapshot productSnapshot = transaction.get(productRef);
+                    Product product = productSnapshot.toObject(Product.class);
+                    int currentQuantity = product != null && product.getQuantity() != null
+                            ? Math.max(0, product.getQuantity())
+                            : 1;
+                    int orderQuantity = order.getQuantity() != null ? Math.max(1, order.getQuantity()) : 1;
+                    int remaining = Math.max(0, currentQuantity - orderQuantity);
+                    transaction.update(productRef,
+                            "quantity", remaining,
+                            "status", remaining > 0 ? DomainConstants.ProductStatus.ACTIVE : DomainConstants.ProductStatus.HIDDEN,
+                            "updated_at", now);
                 }
             }
 
@@ -253,6 +276,10 @@ public class CheckoutService {
                 : DomainConstants.ProductStatus.ACTIVE;
         if (!DomainConstants.ProductStatus.ACTIVE.equals(status) && !"available".equals(status)) {
             throw new IllegalStateException("Sản phẩm này hiện không còn bán.");
+        }
+        int available = product.getQuantity() != null ? Math.max(0, product.getQuantity()) : 1;
+        if (available <= 0) {
+            throw new IllegalStateException("Sản phẩm này hiện đã hết hàng.");
         }
     }
 

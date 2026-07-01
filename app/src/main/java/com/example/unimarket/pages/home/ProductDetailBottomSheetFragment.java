@@ -28,8 +28,6 @@ import com.example.unimarket.data.model.Product;
 import com.example.unimarket.data.model.Review;
 import com.example.unimarket.data.model.User;
 import com.example.unimarket.data.model.Wishlist;
-import com.example.unimarket.data.service.CheckoutService;
-import com.example.unimarket.data.service.DiscountCodeService;
 import com.example.unimarket.data.service.ReviewService;
 import com.example.unimarket.data.service.UserService;
 import com.example.unimarket.data.service.WishlistService;
@@ -60,20 +58,17 @@ public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment 
     private TextView tvProductDetailTitle, tvDetailRating, tvDetailStars, tvDetailReviewCount;
     private TextView tvDetailCondition, tvDetailStatus, tvDetailPrice, tvDetailDescription;
     private TextView tvDetailCategory, tvQuantity, btnQuantityMinus, btnQuantityPlus;
-    private TextView btnApplyCode, btnChat, tvViewAllReviews, tvDiscountStatus, tvBottomTotal;
+    private TextView btnChat, tvViewAllReviews, tvBottomTotal;
     private TextView tvSellerName, tvSellerRating, tvFavoriteIcon, tvFavoriteLabel;
     private TextView tvAddToCartLabel, tvBuyNowLabel;
     private TextView btnSubmitReview, tvSelectedReviewRating, tvReviewFormStatus;
     private TextView btnReviewStar1, btnReviewStar2, btnReviewStar3, btnReviewStar4, btnReviewStar5;
-    private EditText etDiscountCode, etReviewComment;
+    private EditText etReviewComment;
     private RecyclerView rvReviews;
     private LinearLayout layoutReviewEmpty;
     private LinearLayout btnFavorite, btnAddToCart, btnBuyNow;
 
     private int quantity = 1;
-    private boolean discountApplied = false;
-    private String appliedDiscountCodeId;
-    private double discountAmount = 0;
     private boolean favoriteSaved = false;
     private Wishlist currentWishlist;
     private int selectedReviewRating = 5;
@@ -84,8 +79,6 @@ public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment 
 
     private final UserService userService = new UserService();
     private final ReviewService reviewService = new ReviewService();
-    private final DiscountCodeService discountCodeService = new DiscountCodeService();
-    private final CheckoutService checkoutService = new CheckoutService();
     private final WishlistService wishlistService = new WishlistService();
 
     public static ProductDetailBottomSheetFragment newInstance(Product product, String imageUrl, String categoryName) {
@@ -160,9 +153,6 @@ public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment 
         tvQuantity = view.findViewById(R.id.tvQuantity);
         btnQuantityMinus = view.findViewById(R.id.btnQuantityMinus);
         btnQuantityPlus = view.findViewById(R.id.btnQuantityPlus);
-        etDiscountCode = view.findViewById(R.id.etDiscountCode);
-        btnApplyCode = view.findViewById(R.id.btnApplyCode);
-        tvDiscountStatus = view.findViewById(R.id.tvDiscountStatus);
         rvReviews = view.findViewById(R.id.rvReviews);
         layoutReviewEmpty = view.findViewById(R.id.layoutReviewEmpty);
         tvViewAllReviews = view.findViewById(R.id.tvViewAllReviews);
@@ -217,10 +207,9 @@ public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment 
         tvDetailPrice.setText(HomeUiUtils.formatPrice(product.getPrice()));
         tvDetailCategory.setText(!TextUtils.isEmpty(categoryName) ? categoryName : "UniMarket");
         tvDetailCondition.setText(HomeUiUtils.formatConditionAndStatus(product.getCondition(), null));
-        tvDetailStatus.setText(statusLabel(product.getStatus()));
+        tvDetailStatus.setText(statusLabel(product.getStatus()) + " · còn " + availableQuantity());
         tvDetailDescription.setText(!TextUtils.isEmpty(product.getDescription())
                 ? product.getDescription() : "Người bán chưa thêm mô tả cho sản phẩm này.");
-        tvDiscountStatus.setVisibility(View.GONE);
         updateRatingEmptyState();
         updateTotalPrice();
         updateOwnProductState();
@@ -230,7 +219,6 @@ public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment 
         ivClose.setOnClickListener(v -> dismiss());
         btnQuantityMinus.setOnClickListener(v -> updateQuantity(-1));
         btnQuantityPlus.setOnClickListener(v -> updateQuantity(1));
-        btnApplyCode.setOnClickListener(v -> applyDiscountCode());
         btnFavorite.setOnClickListener(v -> toggleWishlist());
         btnAddToCart.setOnClickListener(v -> addToCart());
         btnBuyNow.setOnClickListener(v -> buyNow());
@@ -520,50 +508,15 @@ public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment 
     }
 
     private void updateQuantity(int change) {
-        quantity = Math.max(1, quantity + change);
+        int nextQuantity = Math.max(1, quantity + change);
+        int available = availableQuantity();
+        if (nextQuantity > available) {
+            Toast.makeText(requireContext(), "Số lượng còn lại chỉ còn " + available + ".", Toast.LENGTH_SHORT).show();
+            nextQuantity = available;
+        }
+        quantity = Math.max(1, nextQuantity);
         tvQuantity.setText(String.valueOf(quantity));
         updateTotalPrice();
-    }
-
-    private void applyDiscountCode() {
-        if (discountApplied) {
-            showDiscountStatus("Mã giảm giá đã được áp dụng.", false);
-            return;
-        }
-
-        String code = etDiscountCode.getText() != null
-                ? etDiscountCode.getText().toString().trim().toUpperCase(Locale.ROOT) : "";
-        if (TextUtils.isEmpty(code)) {
-            showDiscountStatus("Vui lòng nhập mã giảm giá.", true);
-            return;
-        }
-
-        btnApplyCode.setEnabled(false);
-        btnApplyCode.setText("Đang kiểm tra...");
-        discountCodeService.validateCode(code, subtotal(), result -> {
-            if (!isAdded()) return;
-            btnApplyCode.setEnabled(true);
-            if (!result.isSuccess() || result.getData() == null) {
-                btnApplyCode.setText("Áp dụng");
-                showDiscountStatus(result.getError(), true);
-                return;
-            }
-
-            DiscountCodeService.Validation validation = result.getData();
-            discountAmount = validation.getAmount();
-            discountApplied = true;
-            appliedDiscountCodeId = validation.getDiscountCode().getId();
-            etDiscountCode.setEnabled(false);
-            btnApplyCode.setText("Đã áp dụng");
-            showDiscountStatus("Đã giảm " + HomeUiUtils.formatPrice(discountAmount) + " cho đơn này.", false);
-            updateTotalPrice();
-        });
-    }
-
-    private void showDiscountStatus(String message, boolean error) {
-        tvDiscountStatus.setVisibility(View.VISIBLE);
-        tvDiscountStatus.setText(message);
-        tvDiscountStatus.setTextColor(error ? 0xFFB42318 : 0xFF027A48);
     }
 
     private void updateTotalPrice() {
@@ -576,7 +529,7 @@ public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment 
     }
 
     private double totalPrice() {
-        return Math.max(0, subtotal() - discountAmount);
+        return Math.max(0, subtotal());
     }
 
     private void toggleWishlist() {
@@ -641,16 +594,20 @@ public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment 
         }
 
         setActionLoading(btnAddToCart, tvAddToCartLabel, true, "Đang thêm...");
-        checkoutService.addToCart(new CheckoutService.AddToCartRequest(
-                user.getUid(),
-                product.getId(),
-                quantity
-        ), result -> {
-            if (!isAdded()) return;
-            setActionLoading(btnAddToCart, tvAddToCartLabel, false, "Thêm vào giỏ");
-            Toast.makeText(requireContext(),
-                    result.isSuccess() ? "Đã thêm vào giỏ hàng" : "Thêm giỏ hàng thất bại: " + result.getError(),
-                    Toast.LENGTH_SHORT).show();
+        new CartFlow().add(product, quantity, new CartFlow.Callback() {
+            @Override
+            public void onSuccess() {
+                if (!isAdded()) return;
+                setActionLoading(btnAddToCart, tvAddToCartLabel, false, "Thêm vào giỏ");
+                Toast.makeText(requireContext(), "Đã thêm vào giỏ hàng", Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onError(String message) {
+                if (!isAdded()) return;
+                setActionLoading(btnAddToCart, tvAddToCartLabel, false, "Thêm vào giỏ");
+                Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show();
+            }
         });
     }
 
@@ -664,22 +621,23 @@ public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment 
             return;
         }
 
-        setActionLoading(btnBuyNow, tvBuyNowLabel, true, "Đang đặt...");
-        checkoutService.createOrder(new CheckoutService.CheckoutRequest(
-                user.getUid(),
-                product.getId(),
-                !TextUtils.isEmpty(imageUrl) ? imageUrl : firstProductImage(),
-                quantity,
-                appliedDiscountCodeId
-        ), result -> {
-            if (!isAdded()) return;
-            if (!result.isSuccess() || result.getData() == null) {
+        setActionLoading(btnBuyNow, tvBuyNowLabel, true, "Đang mở...");
+        new CartFlow().add(product, quantity, new CartFlow.Callback() {
+            @Override
+            public void onSuccess() {
+                if (!isAdded()) return;
                 setActionLoading(btnBuyNow, tvBuyNowLabel, false, "Mua ngay");
-                Toast.makeText(requireContext(), "Đặt hàng thất bại: " + result.getError(), Toast.LENGTH_SHORT).show();
-                return;
+                dismissAllowingStateLoss();
+                CartBottomSheetFragment.newInstance()
+                        .show(requireActivity().getSupportFragmentManager(), "cart_from_buy_now");
             }
-            setActionLoading(btnBuyNow, tvBuyNowLabel, false, "Mua ngay");
-            showOrderSuccessDialog(result.getData());
+
+            @Override
+            public void onError(String message) {
+                if (!isAdded()) return;
+                setActionLoading(btnBuyNow, tvBuyNowLabel, false, "Mua ngay");
+                Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show();
+            }
         });
     }
 
@@ -766,15 +724,29 @@ public class ProductDetailBottomSheetFragment extends BottomSheetDialogFragment 
             Toast.makeText(requireContext(), "Sản phẩm này hiện không còn bán", Toast.LENGTH_SHORT).show();
             return false;
         }
+        if (quantity > availableQuantity()) {
+            Toast.makeText(requireContext(), "Số lượng còn lại chỉ còn " + availableQuantity() + ".", Toast.LENGTH_SHORT).show();
+            return false;
+        }
         return true;
     }
 
     private boolean isProductAvailable() {
-        if (product == null || TextUtils.isEmpty(product.getStatus())) {
+        if (product == null || availableQuantity() <= 0) {
+            return false;
+        }
+        if (TextUtils.isEmpty(product.getStatus())) {
             return true;
         }
         String status = product.getStatus().trim().toLowerCase(Locale.ROOT);
         return status.equals(DomainConstants.ProductStatus.ACTIVE) || status.equals("available") || status.equals("còn hàng");
+    }
+
+    private int availableQuantity() {
+        if (product == null || product.getQuantity() == null) {
+            return 1;
+        }
+        return Math.max(0, product.getQuantity());
     }
 
     private void updateOwnProductState() {

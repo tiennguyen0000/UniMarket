@@ -46,11 +46,20 @@ public class CartFlow {
             callback.onError("Sản phẩm này hiện không còn bán.");
             return;
         }
+        int available = product.getQuantity() != null ? Math.max(0, product.getQuantity()) : 1;
+        if (available <= 0) {
+            callback.onError("Sản phẩm này hiện đã hết hàng.");
+            return;
+        }
+        if (quantity > available) {
+            callback.onError("Số lượng còn lại chỉ còn " + available + ".");
+            return;
+        }
 
         getOrCreateCart(user.getUid(), new CartCallback() {
             @Override
             public void onSuccess(Cart cart) {
-                upsertItem(cart, product.getId(), Math.max(1, quantity), callback);
+                upsertItem(cart, product.getId(), Math.max(1, quantity), available, callback);
             }
 
             @Override
@@ -89,7 +98,7 @@ public class CartFlow {
         });
     }
 
-    private void upsertItem(Cart cart, String productId, int quantity, Callback callback) {
+    private void upsertItem(Cart cart, String productId, int quantity, int available, Callback callback) {
         if (cart == null || TextUtils.isEmpty(cart.getId())) {
             callback.onError("Không thể tạo giỏ hàng.");
             return;
@@ -105,6 +114,10 @@ public class CartFlow {
                     item.setId(stableDocId("cart_item", cart.getId(), productId));
                     item.setCart_id(cart.getId());
                     item.setProduct_id(productId);
+                }
+                if (existingQuantity + quantity > available) {
+                    callback.onError("Số lượng còn lại chỉ còn " + available + ".");
+                    return;
                 }
                 item.setQuantity(existingQuantity + quantity);
                 cartItemService.save(item, result -> {

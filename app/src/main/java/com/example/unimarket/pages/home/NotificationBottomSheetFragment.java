@@ -329,7 +329,10 @@ public class NotificationBottomSheetFragment extends BottomSheetDialogFragment {
             return null;
         }
         for (Product product : products) {
-            if (product != null && !TextUtils.isEmpty(product.getTitle())) {
+            int quantity = product != null && product.getQuantity() != null
+                    ? Math.max(0, product.getQuantity())
+                    : 1;
+            if (product != null && quantity > 0 && !TextUtils.isEmpty(product.getTitle())) {
                 return product;
             }
         }

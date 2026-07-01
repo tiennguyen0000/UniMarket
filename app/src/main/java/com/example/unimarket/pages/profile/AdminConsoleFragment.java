@@ -1,5 +1,7 @@
 package com.example.unimarket.pages.profile;
 
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextUtils;
@@ -13,10 +15,12 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide;
 import com.example.unimarket.R;
 import com.example.unimarket.auth.AccessControl;
 import com.example.unimarket.data.model.Order;
@@ -104,7 +108,7 @@ public class AdminConsoleFragment extends Fragment {
         rvAdminUsers.setLayoutManager(new LinearLayoutManager(requireContext()));
         rvAdminUsers.setAdapter(adminUserAdapter);
         rvAdminUsers.setNestedScrollingEnabled(false);
-        verificationAdapter = new AdminVerificationAdapter(this::confirmApproveVerification);
+        verificationAdapter = new AdminVerificationAdapter(this::showVerificationDetailDialog);
         rvVerificationQueue.setLayoutManager(new LinearLayoutManager(requireContext()));
         rvVerificationQueue.setAdapter(verificationAdapter);
         rvVerificationQueue.setNestedScrollingEnabled(false);
@@ -345,20 +349,70 @@ public class AdminConsoleFragment extends Fragment {
                 .show();
     }
 
-    private void confirmApproveVerification(StudentVerification request) {
+    private void showVerificationDetailDialog(StudentVerification request) {
         if (request == null || TextUtils.isEmpty(request.getId()) || TextUtils.isEmpty(request.getUser_id())) {
             showAdminError("Yêu cầu xác thực không hợp lệ.");
             return;
         }
 
-        String studentId = !TextUtils.isEmpty(request.getStudent_id())
-                ? request.getStudent_id() : "Chưa có MSSV";
-        new MaterialAlertDialogBuilder(requireContext())
-                .setTitle("Duyệt xác thực")
-                .setMessage("Xác thực sinh viên " + studentId + " cho user này?")
-                .setNegativeButton("Hủy", null)
-                .setPositiveButton("Duyệt", (dialog, which) -> approveVerification(request))
-                .show();
+        View content = LayoutInflater.from(requireContext())
+                .inflate(R.layout.dialog_admin_verification_detail, null, false);
+        TextView tvName = content.findViewById(R.id.tvAdminVerificationName);
+        TextView tvStudentId = content.findViewById(R.id.tvAdminVerificationStudentId);
+        TextView tvCreatedAt = content.findViewById(R.id.tvAdminVerificationCreatedAt);
+        TextView btnClose = content.findViewById(R.id.btnAdminVerificationClose);
+        TextView btnApprove = content.findViewById(R.id.btnAdminVerificationApprove);
+        ImageView ivFront = content.findViewById(R.id.ivAdminVerificationFront);
+        ImageView ivBack = content.findViewById(R.id.ivAdminVerificationBack);
+
+        tvName.setText(!TextUtils.isEmpty(request.getUser_name())
+                ? request.getUser_name() : "Người dùng chưa có tên");
+        tvStudentId.setText("MSSV: " + (!TextUtils.isEmpty(request.getStudent_id())
+                ? request.getStudent_id() : "Chưa có"));
+        tvCreatedAt.setText(!TextUtils.isEmpty(request.getCreated_at())
+                ? "Gửi lúc: " + request.getCreated_at() : "Chưa có thời gian gửi");
+        bindVerificationImage(ivFront, !TextUtils.isEmpty(request.getFront_card_url())
+                ? request.getFront_card_url() : request.getProof_url());
+        bindVerificationImage(ivBack, request.getBack_card_url());
+
+        AlertDialog dialog = new MaterialAlertDialogBuilder(requireContext())
+                .setView(content)
+                .create();
+        btnClose.setOnClickListener(v -> dialog.dismiss());
+        btnApprove.setOnClickListener(v -> {
+            dialog.dismiss();
+            approveVerification(request);
+        });
+        dialog.show();
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        }
+    }
+
+    private void bindVerificationImage(ImageView imageView, String url) {
+        if (imageView == null) {
+            return;
+        }
+        if (TextUtils.isEmpty(url)) {
+            imageView.setAlpha(0.45f);
+            imageView.setPadding(dpToPx(18), dpToPx(18), dpToPx(18), dpToPx(18));
+            imageView.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+            imageView.setImageResource(R.drawable.card);
+            return;
+        }
+        imageView.setAlpha(1f);
+        imageView.setPadding(0, 0, 0, 0);
+        imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        Glide.with(this)
+                .load(url)
+                .centerCrop()
+                .placeholder(R.drawable.card)
+                .error(R.drawable.card)
+                .into(imageView);
+    }
+
+    private int dpToPx(int dp) {
+        return Math.round(dp * getResources().getDisplayMetrics().density);
     }
 
     private void approveVerification(StudentVerification request) {

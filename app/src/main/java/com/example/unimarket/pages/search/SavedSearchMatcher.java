@@ -71,8 +71,11 @@ public final class SavedSearchMatcher {
 
     private static boolean isVisibleProduct(Product product) {
         String status = safeLower(product.getStatus());
-        return !status.equals("removed")
+        int quantity = product.getQuantity() != null ? Math.max(0, product.getQuantity()) : 1;
+        return quantity > 0
+                && !status.equals("removed")
                 && !status.equals("inactive")
+                && !status.equals(DomainConstants.ProductStatus.SOLD)
                 && !status.equals(DomainConstants.ProductStatus.HIDDEN);
     }
 

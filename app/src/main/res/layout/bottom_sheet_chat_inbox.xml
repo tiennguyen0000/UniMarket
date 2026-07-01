@@ -44,13 +44,6 @@
                 android:textSize="18sp"
                 android:textStyle="bold" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
-                android:text="Trao đổi với người mua và người bán"
-                android:textColor="#DCE8FF"
-                android:textSize="12sp" />
         </LinearLayout>
 
         <ImageView

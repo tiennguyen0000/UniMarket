@@ -12,6 +12,11 @@
         <item name="colorPrimary">@color/primary</item>
         <item name="colorOnPrimary">@color/white</item>
         <item name="colorSurface">@color/white</item>
+        <item name="colorSurfaceVariant">@color/white</item>
+        <item name="colorSurfaceContainer">@color/white</item>
+        <item name="colorSurfaceContainerLow">@color/white</item>
+        <item name="colorSurfaceContainerHigh">@color/white</item>
+        <item name="android:colorBackground">#F4F7FC</item>
         <item name="colorOnSurface">@color/text_primary</item>
         <item name="materialCardViewStyle">@style/Widget.UniMarket.MaterialCardView</item>
     </style>
@@ -23,7 +28,7 @@
     </style>
 
     <style name="RoundedImage" parent="">
-        <item name="cornerSize">12dp</item>
+        <item name="cornerSize">8dp</item>
     </style>
 
     <style name="TabTextAppearance" parent="TextAppearance.Design.Tab">

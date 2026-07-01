@@ -72,6 +72,12 @@ service cloud.firestore {
             && request.resource.data._verified == false));
     }
 
+    function moderatorVerificationOnly() {
+      return moderator()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['_verified'])
+        && request.resource.data._verified is bool;
+    }
+
     function conversationMember(data) {
       return signedIn() && (data.buyer_id == uid() || data.seller_id == uid());
     }
@@ -94,6 +100,7 @@ service cloud.firestore {
         && (!request.resource.data.keys().hasAny(['verified'])
           || request.resource.data.verified == false);
       allow update: if admin()
+        || moderatorVerificationOnly()
         || (owner(profileId)
           && protectedProfileFieldsStable());
       allow delete: if admin();

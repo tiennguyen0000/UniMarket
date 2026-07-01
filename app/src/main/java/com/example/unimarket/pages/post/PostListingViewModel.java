@@ -73,6 +73,10 @@ public class PostListingViewModel extends ViewModel {
         selectedImages.setValue(current);
     }
 
+    public void setImages(List<String> uris) {
+        selectedImages.setValue(uris != null ? new ArrayList<>(uris) : new ArrayList<>());
+    }
+
     public void submitProduct(Product product) {
         isLoading.setValue(true);
         postSuccess.setValue(false);
@@ -105,10 +109,17 @@ public class PostListingViewModel extends ViewModel {
         List<String> downloadUrls = new ArrayList<>(Collections.nCopies(localUris.size(), null));
         AtomicInteger completedCount = new AtomicInteger(0);
         AtomicBoolean hasUploadFailure = new AtomicBoolean(false);
+        int uploadCount = 0;
 
         for (int i = 0; i < localUris.size(); i++) {
             final int index = i;
             String uriString = localUris.get(i);
+            if (isRemoteUrl(uriString)) {
+                downloadUrls.set(index, uriString);
+                completedCount.incrementAndGet();
+                continue;
+            }
+            uploadCount++;
             Uri fileUri = Uri.parse(uriString);
             String fileName = "products/" + ownerId + "/" + UUID.randomUUID() + ".jpg";
             StorageReference ref = storage.getReference().child(fileName);
@@ -139,6 +150,15 @@ public class PostListingViewModel extends ViewModel {
                 }
             });
         }
+        if (uploadCount == 0) {
+            product.setImage_urls(new ArrayList<>(downloadUrls));
+            saveProductToFirestore(product);
+        }
+    }
+
+    private boolean isRemoteUrl(String uriString) {
+        return uriString != null
+                && (uriString.startsWith("http://") || uriString.startsWith("https://"));
     }
 
     private void saveProductToFirestore(Product product) {

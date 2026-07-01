@@ -1,6 +1,8 @@
 package com.example.unimarket.pages.home;
 
 import android.graphics.Color;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -14,6 +16,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.core.widget.NestedScrollView;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.fragment.NavHostFragment;
 import androidx.recyclerview.widget.GridLayoutManager;
@@ -30,6 +33,7 @@ import com.example.unimarket.data.service.UserService;
 import com.example.unimarket.data.service.base.AsyncCrudService;
 import com.example.unimarket.pages.chat.ChatInboxBottomSheetFragment;
 import com.example.unimarket.pages.post.PostListingFragment;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 
@@ -39,6 +43,8 @@ import java.util.List;
 import java.util.Locale;
 
 public class HomeFragment extends Fragment {
+    private static final String SURVEY_FORM_URL =
+            "https://docs.google.com/forms/d/e/1FAIpQLSeQ8zFEeuqJF7GQrGL4aT-dM6gousilPE9yo3fqIcs2--_4ZA/viewform?usp=publish-editor";
 
     private TextView tvHomeGreeting;
     private TextView tvUserName;
@@ -56,7 +62,14 @@ public class HomeFragment extends Fragment {
     private View cardHomeOrders;
     private View cardHomeMessages;
     private View cardHomeProfile;
+    private View cardHomeOffers;
+    private View cardHomeVerifyMission;
+    private View cardHomeSurveyMission;
+    private View cardHomeSellerMission;
+    private TextView tvHomeMissionStatus;
     private View layoutHomeLoading;
+    private View homeAppBarLayout;
+    private NestedScrollView homeScrollView;
 
     private RecyclerView rvCategories;
     private CategoryAdapter categoryAdapter;
@@ -67,6 +80,7 @@ public class HomeFragment extends Fragment {
     private final SavedSearchAlertSync savedSearchAlertSync = new SavedSearchAlertSync();
     private final List<Category> categoryList = new ArrayList<>();
     private boolean isExpandedCategories = false;
+    private boolean homeBarHidden;
 
     @Nullable
     @Override
@@ -80,11 +94,12 @@ public class HomeFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
         setupLightSystemBars();
 
-        homeViewModel = new ViewModelProvider(this).get(HomeViewModel.class);
+        homeViewModel = new ViewModelProvider(requireActivity()).get(HomeViewModel.class);
         initViews(view);
         setupRecyclerViews();
         setupUserInfo();
         setupClicks();
+        setupHomeBarAutoHide();
         setupRefreshListener();
         setupObservers();
         homeViewModel.loadHomeData();
@@ -127,8 +142,56 @@ public class HomeFragment extends Fragment {
         cardHomeOrders = root.findViewById(R.id.cardHomeOrders);
         cardHomeMessages = root.findViewById(R.id.cardHomeMessages);
         cardHomeProfile = root.findViewById(R.id.cardHomeProfile);
+        cardHomeOffers = root.findViewById(R.id.cardHomeOffers);
+        cardHomeVerifyMission = root.findViewById(R.id.cardHomeVerifyMission);
+        cardHomeSurveyMission = root.findViewById(R.id.cardHomeSurveyMission);
+        cardHomeSellerMission = root.findViewById(R.id.cardHomeSellerMission);
+        tvHomeMissionStatus = root.findViewById(R.id.tvHomeMissionStatus);
         layoutHomeLoading = root.findViewById(R.id.layoutHomeLoading);
+        homeAppBarLayout = root.findViewById(R.id.homeAppBarLayout);
+        homeScrollView = root.findViewById(R.id.homeScrollView);
         rvCategories = root.findViewById(R.id.rvCategories);
+    }
+
+    private void setupHomeBarAutoHide() {
+        if (homeScrollView == null || homeAppBarLayout == null) {
+            return;
+        }
+        homeScrollView.setOnScrollChangeListener((NestedScrollView.OnScrollChangeListener)
+                (view, scrollX, scrollY, oldScrollX, oldScrollY) -> {
+                    int deltaY = scrollY - oldScrollY;
+                    if (scrollY <= dpToPx(8)) {
+                        showHomeBar();
+                    } else if (deltaY > 2) {
+                        float hideDistance = Math.max(dpToPx(92), homeAppBarLayout.getHeight());
+                        float progress = Math.min(1f, scrollY / hideDistance);
+                        applyHomeBarProgress(progress);
+                    }
+                });
+    }
+
+    private void applyHomeBarProgress(float progress) {
+        if (homeAppBarLayout == null) {
+            return;
+        }
+        homeBarHidden = progress >= 1f;
+        homeAppBarLayout.animate().cancel();
+        homeAppBarLayout.setAlpha(1f - progress);
+        homeAppBarLayout.setTranslationY(-homeAppBarLayout.getHeight() * progress);
+        homeAppBarLayout.setVisibility(progress >= 1f ? View.INVISIBLE : View.VISIBLE);
+    }
+
+    private void showHomeBar() {
+        if (homeAppBarLayout == null || !homeBarHidden && homeAppBarLayout.getAlpha() >= 1f) {
+            return;
+        }
+        homeBarHidden = false;
+        homeAppBarLayout.setVisibility(View.VISIBLE);
+        homeAppBarLayout.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setDuration(160)
+                .start();
     }
 
     private void setupRecyclerViews() {
@@ -252,6 +315,9 @@ public class HomeFragment extends Fragment {
         if (tvHomeVerifiedBadge != null) {
             tvHomeVerifiedBadge.setVisibility(verified ? View.VISIBLE : View.GONE);
         }
+        if (tvHomeMissionStatus != null) {
+            tvHomeMissionStatus.setText(verified ? "Đã mở VERIFIED15" : "Mở mã");
+        }
 
         if (!TextUtils.isEmpty(avatarUrl)) {
             tvAvatar.setVisibility(View.GONE);
@@ -353,6 +419,16 @@ public class HomeFragment extends Fragment {
         cardHomeOrders.setOnClickListener(v -> navigateToOrders());
         cardHomeMessages.setOnClickListener(v -> showChatInbox());
         cardHomeProfile.setOnClickListener(v -> navigateToProfile());
+        cardHomeOffers.setOnClickListener(v -> showOffersDialog());
+        if (cardHomeVerifyMission != null) {
+            cardHomeVerifyMission.setOnClickListener(v -> navigateToProfile());
+        }
+        if (cardHomeSurveyMission != null) {
+            cardHomeSurveyMission.setOnClickListener(v -> openSurveyForm());
+        }
+        if (cardHomeSellerMission != null) {
+            cardHomeSellerMission.setOnClickListener(v -> navigateToPostListing());
+        }
         layoutNotification.setOnClickListener(v -> showNotificationBottomSheet());
         tvViewAll.setOnClickListener(v -> toggleCategories());
     }
@@ -362,7 +438,7 @@ public class HomeFragment extends Fragment {
                 PostListingFragment.RESULT_LISTING_CREATED,
                 getViewLifecycleOwner(),
                 (requestKey, result) -> {
-                    homeViewModel.loadHomeData();
+                    homeViewModel.refreshCatalogData();
                     syncSavedSearchAlerts();
                 }
         );
@@ -406,6 +482,26 @@ public class HomeFragment extends Fragment {
 
     private void showChatInbox() {
         new ChatInboxBottomSheetFragment().show(getParentFragmentManager(), "home_chat_inbox");
+    }
+
+    private void showOffersDialog() {
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Ưu đãi mã giảm")
+                .setMessage("WELCOME10: giảm 10% cho đơn từ 50.000đ\n"
+                        + "FREESHIP: miễn 10.000đ phí ship cho đơn từ 80.000đ\n"
+                        + "BOOK25: giảm 25% cho đơn sách từ 120.000đ\n"
+                        + "CAMPUS5: giảm 5.000đ cho đơn bất kỳ\n"
+                        + "VERIFIED15: giảm 15% cho tài khoản đã xác thực\n"
+                        + "SURVEY10: giảm 10.000đ sau khảo sát campus\n"
+                        + "SELLER20: giảm 20% khi bạn đăng tin đầu tiên\n\n"
+                        + "Các mã do hệ thống ưu đãi, không trừ vào doanh thu người bán.")
+                .setPositiveButton("Đã hiểu", null)
+                .show();
+    }
+
+    private void openSurveyForm() {
+        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(SURVEY_FORM_URL));
+        startActivity(intent);
     }
 
     private void showNotificationBottomSheet() {

@@ -1,190 +1,99 @@
 # UniMarket
 
-UniMarket là ứng dụng Android dành cho sinh viên mua bán và trao đổi đồ dùng trong môi trường đại học. Dự án tập trung vào luồng giao dịch nội bộ campus: đăng tin, tìm kiếm sản phẩm, nhắn tin với người bán, thêm vào giỏ, đặt hàng, theo dõi đơn và quản lý hồ sơ người dùng.
+UniMarket là ứng dụng Android dành cho sinh viên mua bán, trao đổi và quản lý giao dịch đồ dùng trong môi trường đại học. Dự án tập trung vào trải nghiệm marketplace nội bộ campus: đăng tin, tìm kiếm sản phẩm, nhắn tin, giỏ hàng, đặt hàng, theo dõi đơn, xác thực sinh viên và quản trị nội dung.
 
-## Highlights
+## Tính năng chính
 
-- Xây dựng native Android với Java và Material Components
-- Dùng Firebase Authentication, Cloud Firestore, Firebase Storage và Firebase Analytics
-- Hỗ trợ flow mua bán tương đối đầy đủ: listing -> search -> wishlist/cart -> checkout -> orders -> chat -> review
-- Có lớp kiểm soát quyền theo vai trò và xác thực sinh viên
-- Có khu vực quản trị cho kiểm duyệt người dùng và yêu cầu xác minh
+- Onboarding, đăng ký, đăng nhập, quên mật khẩu và xác thực email.
+- Đăng nhập email/mật khẩu và hỗ trợ Google Sign-In khi Firebase OAuth được cấu hình đúng.
+- Trang chủ với nhiệm vụ nhận ưu đãi, mã giảm giá, lối tắt mua/bán và gợi ý sản phẩm.
+- Đăng tin sản phẩm với ảnh, tiêu đề, mô tả, giá, số lượng, danh mục và tình trạng.
+- Tìm kiếm sản phẩm với bộ lọc, sắp xếp, tìm kiếm gần đây, sản phẩm đã lưu và chế độ riêng cho người bán.
+- Chi tiết sản phẩm dạng bottom sheet, hỗ trợ lưu, đánh giá, chat, thêm giỏ hàng và mua ngay.
+- Giỏ hàng với thông tin nhận hàng, số điện thoại, vị trí, phương thức giao, lời nhắc người bán và mã giảm giá.
+- Quản lý đơn mua/đơn bán, cập nhật trạng thái và chỉnh thông tin giao hàng khi đơn còn hợp lệ.
+- Chat giữa người mua và người bán, inbox hội thoại và thông báo trong app.
+- Hồ sơ cá nhân, chỉnh sửa thông tin, tìm kiếm đã lưu, bài đăng, đơn hàng và sản phẩm đã lưu.
+- Xác thực sinh viên bằng MSSV, họ tên và ảnh hai mặt thẻ sinh viên.
+- Bảng quản trị cho admin/moderator để xem thống kê, quản lý người dùng và duyệt xác thực.
 
-## Feature Set
+## Công nghệ sử dụng
 
-### 1. Authentication & Onboarding
+- Java cho Android native.
+- Android Views, Material Components, RecyclerView, BottomSheet và Navigation Component.
+- Firebase Authentication, Cloud Firestore và Firebase Storage.
+- Glide cho tải ảnh.
+- JUnit cho unit test.
 
-- Onboarding cho người dùng mới
-- Đăng ký, đăng nhập, quên mật khẩu, xác minh email
-- Hỗ trợ Google Sign-In trong flow xác thực
+## Kiến trúc tổng quan
 
-### 2. Marketplace Listing
+Dự án dùng kiến trúc phân tầng nhẹ, phù hợp với Android app dùng Firebase trực tiếp.
 
-- Đăng tin bán sản phẩm với tiêu đề, mô tả, giá, tình trạng và danh mục
-- Upload nhiều ảnh sản phẩm lên Firebase Storage
-- Kiểm tra quyền đăng tin dựa trên hồ sơ người dùng và trạng thái xác thực
+- Presentation layer: `Activity`, `Fragment`, `BottomSheetDialogFragment`, adapter và ViewModel.
+- Data model: các model như `User`, `Product`, `Order`, `Cart`, `Review`, `Notification`, `DiscountCode`.
+- Service layer: các service theo entity và các service điều phối như `CheckoutService`.
+- Rules layer: `firestore.rules` và `storage.rules` để kiểm soát quyền truy cập dữ liệu.
 
-### 3. Browse & Search
-
-- Trang chủ hiển thị danh mục và entry points tới các luồng chính
-- Màn tìm kiếm có lọc danh mục và các tiêu chí liên quan
-- Hỗ trợ mở chi tiết sản phẩm qua bottom sheet
-
-### 4. Product Detail & Engagement
-
-- Xem chi tiết sản phẩm, hình ảnh, mô tả, tình trạng
-- Thêm/xóa wishlist
-- Xem và gửi đánh giá
-- Nhắn tin trực tiếp với người bán từ chi tiết sản phẩm
-
-### 5. Cart & Checkout
-
-- Thêm sản phẩm vào giỏ
-- Mở cart bottom sheet và quản lý line items
-- Tạo đơn hàng từ sản phẩm
-- Áp dụng discount code trong flow thanh toán
-- Đồng bộ trạng thái sản phẩm và đơn hàng sau checkout
-
-### 6. Orders
-
-- Theo dõi đơn mua và đơn bán
-- Lọc theo trạng thái
-- Cập nhật vòng đời đơn hàng theo vai trò buyer/seller
-- Mở lại chat hoặc mua lại từ order flow
-
-### 7. Chat & Notifications
-
-- Chat theo conversation gắn với sản phẩm
-- Inbox hội thoại qua bottom sheet
-- Tạo thông báo cho tin nhắn và cập nhật đơn hàng
-- Badge thông báo chưa đọc ở giao diện chính
-
-### 8. Profile, Verification & Admin
-
-- Quản lý hồ sơ cá nhân
-- Xem bài đăng, đơn hàng và sản phẩm đã lưu
-- Gửi yêu cầu xác thực sinh viên
-- Admin console cho reviewer/moderator quản lý người dùng và verification requests
-
-## Tech Stack
-
-- Language: Java 11 cho Android source compatibility
-- UI: Android Views, Material Components, RecyclerView, BottomSheet, Navigation Component
-- Architecture: Activity/Fragment + ViewModel + service layer
-- Backend: Firebase Authentication, Cloud Firestore, Firebase Storage, Firebase Analytics
-- Image loading: Glide
-- Testing: JUnit
-
-## Architecture Overview
-
-Dự án đang dùng kiến trúc phân tầng nhẹ, ưu tiên dễ đọc và dễ mở rộng trong bối cảnh app Android dùng Firebase trực tiếp.
-
-- Presentation layer
-  - `Activity`, `Fragment`, `BottomSheetDialogFragment`
-  - `ViewModel` cho các màn đã được chuẩn hóa state
-  - Một số màn dùng `UiState` / `UiEvent` để tách state hiển thị và one-time events
-- Data layer
-  - `data/model` chứa các domain model như `User`, `Product`, `Order`, `Review`, `Notification`
-  - `data/service` chứa service theo từng entity và các service orchestration như `CheckoutService`
-  - `data/service/base` chứa `BaseCrudService`, `AsyncCrudService`, `Result`, `ResultCallback`
-- Access & rules layer
-  - `auth/AccessControl.java`
-  - `firestore.rules`
-  - `storage.rules`
-
-## Project Structure
+## Cấu trúc thư mục chính
 
 ```text
 app/src/main/java/com/example/unimarket/
-├── auth/                    # Login, register, onboarding, access control
+├── auth/                    # Đăng nhập, đăng ký, onboarding, phân quyền
 ├── data/
-│   ├── model/               # User, Product, Order, Cart, Review, ...
-│   ├── service/             # CRUD services + CheckoutService
-│   └── util/                # TimeUtils, FirestoreIds, constants helpers
+│   ├── model/               # User, Product, Order, Cart, Review, DiscountCode, ...
+│   ├── service/             # Service thao tác Firebase và checkout flow
+│   └── util/                # Helper dùng chung
 ├── pages/
-│   ├── home/                # Home, product detail, cart, notifications
-│   ├── search/              # Search and filters
-│   ├── post/                # Create listing
-│   ├── orders/              # Buyer/seller order flows
-│   ├── chat/                # Product conversations and inbox
-│   └── profile/             # Profile, verification, admin console
-├── Controller.java          # Main host with bottom navigation
-└── MainActivity.java        # Entry flow
+│   ├── home/                # Trang chủ, chi tiết sản phẩm, giỏ hàng, thông báo
+│   ├── search/              # Tìm kiếm, bộ lọc, trạng thái danh sách sản phẩm
+│   ├── post/                # Đăng tin và cập nhật tin đăng
+│   ├── orders/              # Đơn mua, đơn bán, cập nhật đơn hàng
+│   └── profile/             # Hồ sơ, xác thực sinh viên, quản trị
+├── Controller.java          # Activity khung chính với bottom navigation
+└── MainActivity.java        # Entry flow của ứng dụng
 ```
 
-## Backend Notes
+## Firebase
 
-- Firestore được dùng làm nguồn dữ liệu chính cho:
-  - `profiles`
-  - `products`
-  - `carts`, `cart_items`
-  - `orders`, `order_items`
-  - `conversations`, `messages`
-  - `notifications`
-  - `wishlist`
-  - `reviews`
-  - `student_verifications`
-  - `reports`, `user_behavior`, `discount_codes`
-- Firebase Storage được dùng cho ảnh sản phẩm và avatar
-- Quyền truy cập dữ liệu được định nghĩa tại:
-  - [firestore.rules](/mnt/c/Git/Android/UniMarket/firestore.rules)
-  - [storage.rules](/mnt/c/Git/Android/UniMarket/storage.rules)
+Firestore đang được dùng cho các collection chính:
 
-## Getting Started
+- `profiles`
+- `products`
+- `carts`, `cart_items`
+- `orders`, `order_items`
+- `conversations`, `messages`
+- `notifications`
+- `wishlist`
+- `reviews`
+- `student_verifications`
+- `discount_codes`
+- `reports`, `user_behavior`
 
-### Requirements
+Firebase Storage được dùng cho ảnh sản phẩm, ảnh xác thực sinh viên và các tài nguyên người dùng tải lên.
 
-- Android Studio bản mới
-- JDK phù hợp với Android Gradle Plugin
-- Android SDK theo cấu hình Gradle hiện tại
-- Firebase project để cấp Auth / Firestore / Storage
+## Cài đặt local
 
-### Firebase Setup
-
-1. Tạo Firebase project
-2. Bật các dịch vụ cần dùng:
-   - Authentication
-   - Cloud Firestore
-   - Firebase Storage
-   - Analytics nếu muốn theo dõi sự kiện
-3. Thêm Android app vào Firebase project
-4. Đặt `google-services.json` vào:
+1. Clone repository.
+2. Mở project bằng Android Studio.
+3. Tạo Firebase project và bật Authentication, Cloud Firestore, Firebase Storage.
+4. Thêm Android app vào Firebase project.
+5. Đặt file cấu hình Firebase tại:
 
 ```text
 app/google-services.json
 ```
 
-5. Kiểm tra lại cấu hình SHA, OAuth client và `default_web_client_id` nếu dùng Google Sign-In
+6. Kiểm tra SHA-1/SHA-256 và OAuth client nếu dùng Google Sign-In.
+7. Sync Gradle và chạy app trên thiết bị hoặc emulator.
 
-### Local Setup
-
-1. Clone repo
-2. Mở bằng Android Studio
-3. Kiểm tra `local.properties` trỏ đúng Android SDK
-4. Sync Gradle
-
-### Useful Commands
+## Lệnh thường dùng
 
 ```bash
 ./gradlew :app:assembleDebug
-./gradlew :app:compileDebugJavaWithJavac
+./gradlew :app:installDebug
 ./gradlew :app:testDebugUnitTest
 ```
 
-## Current Scope
+## Lưu ý bảo mật
 
-Repo hiện đã bao phủ phần lớn flow marketplace trong campus, nhưng vẫn thiên về application prototype / academic product hơn là production-hardened system.
-
-Một số điểm cần lưu ý:
-
-- Business rules đang nằm khá nhiều ở tầng client + Firestore rules
-- Chưa có backend riêng ngoài Firebase
-- Kiểm thử hiện mới tập trung ở mức unit test cơ bản
-- Một số màn vẫn theo style Android View truyền thống thay vì architecture tách sâu hơn
-
-## Why This Project Stands Out
-
-- Không chỉ dừng ở CRUD listing cơ bản mà có cả cart, checkout, orders, chat và notifications
-- Có mô hình role/verification giúp luồng đăng bán sát bài toán thực tế hơn
-- Có admin console và moderation-oriented access control, hiếm hơn ở các đồ án marketplace Android cơ bản
-
+Không commit các file chứa khóa hoặc dữ liệu máy cá nhân như `local.properties`, service account JSON, ảnh chụp màn hình tạm, thư mục build, file IDE local hoặc các file sinh ra khi chạy script.

@@ -5,18 +5,27 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#F4F7FC"
+    android:clipChildren="false"
+    android:clipToPadding="false"
     tools:context=".pages.profile.AdminConsoleFragment">
 
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:clipChildren="false"
+        android:clipToPadding="false"
         android:fillViewport="true">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:clipChildren="false"
+            android:clipToPadding="false"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:paddingStart="14dp"
+            android:paddingTop="16dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="24dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -90,8 +99,9 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="14dp"
                 app:cardBackgroundColor="@color/white"
-                app:cardCornerRadius="22dp"
+                app:cardCornerRadius="8dp"
                 app:cardElevation="3dp"
+                app:cardUseCompatPadding="true"
                 app:strokeColor="#E6ECF5"
                 app:strokeWidth="1dp">
 
@@ -123,6 +133,8 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
+                        android:clipChildren="false"
+                        android:clipToPadding="false"
                         android:nestedScrollingEnabled="false"
                         tools:listitem="@layout/item_admin_verification" />
                 </LinearLayout>
@@ -134,8 +146,9 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="14dp"
                 app:cardBackgroundColor="@color/white"
-                app:cardCornerRadius="22dp"
+                app:cardCornerRadius="8dp"
                 app:cardElevation="3dp"
+                app:cardUseCompatPadding="true"
                 app:strokeColor="#E6ECF5"
                 app:strokeWidth="1dp">
 
@@ -258,8 +271,9 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="14dp"
                 app:cardBackgroundColor="@color/white"
-                app:cardCornerRadius="22dp"
+                app:cardCornerRadius="8dp"
                 app:cardElevation="3dp"
+                app:cardUseCompatPadding="true"
                 app:strokeColor="#E6ECF5"
                 app:strokeWidth="1dp">
 
@@ -304,6 +318,8 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
+                        android:clipChildren="false"
+                        android:clipToPadding="false"
                         android:nestedScrollingEnabled="false"
                         tools:listitem="@layout/item_admin_user" />
                 </LinearLayout>

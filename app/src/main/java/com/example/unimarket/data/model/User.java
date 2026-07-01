@@ -6,6 +6,7 @@ public class User {
     private String id; // Firebase UID
     private String full_name;
     private String phone;
+    private String location;
     private String university;
     private String avatar_url;
     private boolean verified;
@@ -23,6 +24,8 @@ public class User {
     public void setFull_name(String full_name) { this.full_name = full_name; }
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
+    public String getLocation() { return location; }
+    public void setLocation(String location) { this.location = location; }
     public String getUniversity() { return university; }
     public void setUniversity(String university) { this.university = university; }
     public String getAvatar_url() { return avatar_url; }

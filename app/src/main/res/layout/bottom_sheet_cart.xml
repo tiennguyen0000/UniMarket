@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/bg_detail_surface"
@@ -30,7 +31,7 @@
             android:contentDescription="Đóng"
             android:padding="10dp"
             android:src="@drawable/close"
-            android:tint="#667085" />
+            app:tint="#667085" />
     </LinearLayout>
 
     <FrameLayout
@@ -38,14 +39,403 @@
         android:layout_height="0dp"
         android:layout_weight="1">
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvCartItems"
+        <ScrollView
+            android:id="@+id/scrollCartContent"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:clipToPadding="false"
-            android:paddingStart="18dp"
-            android:paddingEnd="18dp"
-            android:paddingBottom="18dp" />
+            android:fillViewport="true"
+            android:paddingBottom="168dp"
+            android:overScrollMode="ifContentScrolls">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvCartItems"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:clipToPadding="false"
+                    android:nestedScrollingEnabled="false"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:paddingBottom="10dp" />
+
+                <Space
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1" />
+
+                <LinearLayout
+                    android:id="@+id/layoutCartFooter"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_cart_bottom_panel"
+                    android:orientation="vertical"
+                    android:paddingStart="18dp"
+                    android:paddingTop="14dp"
+                    android:paddingEnd="18dp"
+                    android:paddingBottom="16dp">
+
+                    <LinearLayout
+                        android:id="@+id/layoutCheckoutHeader"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:foreground="?attr/selectableItemBackground"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:layout_width="28dp"
+                            android:layout_height="28dp"
+                            android:background="@drawable/bg_cart_field_icon"
+                            android:padding="6dp"
+                            android:src="@drawable/shipping"
+                            app:tint="#21409A" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="10dp"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="Thông tin nhận hàng"
+                                android:textColor="#101828"
+                                android:textSize="15sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/tvCheckoutFormSummary"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="Điền thông tin để người bán giao đúng hẹn"
+                                android:textColor="#667085"
+                                android:textSize="12sp" />
+                        </LinearLayout>
+
+                        <ImageView
+                            android:id="@+id/ivCheckoutFormToggle"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
+                            android:contentDescription="Thu gọn hoặc mở rộng"
+                            android:padding="7dp"
+                            android:src="@drawable/drop"
+                            app:tint="#21409A" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/layoutCheckoutFields"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:orientation="vertical">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:background="@drawable/bg_cart_field_row"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingStart="12dp"
+                            android:paddingEnd="12dp">
+
+                            <ImageView
+                                android:layout_width="24dp"
+                                android:layout_height="24dp"
+                                android:background="@drawable/bg_cart_field_icon"
+                                android:padding="5dp"
+                                android:src="@drawable/phone1"
+                                app:tint="#21409A" />
+
+                            <EditText
+                                android:id="@+id/etCheckoutPhone"
+                                android:layout_width="0dp"
+                                android:layout_height="match_parent"
+                                android:layout_marginStart="10dp"
+                                android:layout_weight="1"
+                                android:background="@android:color/transparent"
+                                android:hint="Số điện thoại"
+                                android:inputType="phone"
+                                android:singleLine="true"
+                                android:textColor="#101828"
+                                android:textColorHint="#98A2B3"
+                                android:textSize="14sp" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:layout_marginTop="8dp"
+                            android:background="@drawable/bg_cart_field_row"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingStart="12dp"
+                            android:paddingEnd="12dp">
+
+                            <ImageView
+                                android:layout_width="24dp"
+                                android:layout_height="24dp"
+                                android:background="@drawable/bg_cart_field_icon"
+                                android:padding="5dp"
+                                android:src="@drawable/location"
+                                app:tint="#21409A" />
+
+                            <EditText
+                                android:id="@+id/etCheckoutLocation"
+                                android:layout_width="0dp"
+                                android:layout_height="match_parent"
+                                android:layout_marginStart="10dp"
+                                android:layout_weight="1"
+                                android:background="@android:color/transparent"
+                                android:hint="Vị trí nhận hàng"
+                                android:inputType="textPostalAddress"
+                                android:singleLine="true"
+                                android:textColor="#101828"
+                                android:textColorHint="#98A2B3"
+                                android:textSize="14sp" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
+                            android:background="@drawable/bg_cart_shipping_option"
+                            android:orientation="vertical"
+                            android:paddingStart="12dp"
+                            android:paddingTop="4dp"
+                            android:paddingEnd="12dp"
+                            android:paddingBottom="4dp">
+
+                            <LinearLayout
+                                android:id="@+id/btnShipStandard"
+                                android:layout_width="match_parent"
+                                android:layout_height="68dp"
+                                android:background="@android:color/transparent"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:foreground="?attr/selectableItemBackground"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal">
+
+                                <ImageView
+                                    android:id="@+id/ivShipStandardIcon"
+                                    android:layout_width="34dp"
+                                    android:layout_height="34dp"
+                                    android:background="@android:color/transparent"
+                                    android:padding="6dp"
+                                    android:src="@drawable/shipping"
+                                    app:tint="#21409A" />
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="12dp"
+                                    android:layout_weight="1"
+                                    android:orientation="vertical">
+
+                                    <TextView
+                                        android:id="@+id/tvShipStandardTitle"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:text="Giao thường"
+                                        android:textColor="#21409A"
+                                        android:textSize="13sp"
+                                        android:textStyle="bold" />
+
+                                    <TextView
+                                        android:id="@+id/tvShipStandardDetail"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="3dp"
+                                        android:text="Nhận trong 2-3 ngày"
+                                        android:textColor="#21409A"
+                                        android:textSize="12sp" />
+                                </LinearLayout>
+
+                                <TextView
+                                    android:id="@+id/tvShipStandardFee"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="10dp"
+                                    android:text="10.000đ"
+                                    android:textColor="#21409A"
+                                    android:textSize="13sp"
+                                    android:textStyle="bold" />
+                            </LinearLayout>
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="1dp"
+                                android:layout_marginStart="46dp"
+                                android:layout_marginEnd="8dp"
+                                android:background="#E4EBF5" />
+
+                            <LinearLayout
+                                android:id="@+id/btnShipExpress"
+                                android:layout_width="match_parent"
+                                android:layout_height="68dp"
+                                android:background="@android:color/transparent"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:foreground="?attr/selectableItemBackground"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal">
+
+                                <ImageView
+                                    android:id="@+id/ivShipExpressIcon"
+                                    android:layout_width="34dp"
+                                    android:layout_height="34dp"
+                                    android:background="@android:color/transparent"
+                                    android:padding="6dp"
+                                    android:src="@drawable/rocket"
+                                    app:tint="#667085" />
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="12dp"
+                                    android:layout_weight="1"
+                                    android:orientation="vertical">
+
+                                    <TextView
+                                        android:id="@+id/tvShipExpressTitle"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:text="Hỏa tốc"
+                                        android:textColor="#667085"
+                                        android:textSize="13sp"
+                                        android:textStyle="bold" />
+
+                                    <TextView
+                                        android:id="@+id/tvShipExpressDetail"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="3dp"
+                                        android:text="Nhận trong 24 giờ"
+                                        android:textColor="#667085"
+                                        android:textSize="12sp" />
+                                </LinearLayout>
+
+                                <TextView
+                                    android:id="@+id/tvShipExpressFee"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="10dp"
+                                    android:text="25.000đ"
+                                    android:textColor="#667085"
+                                    android:textSize="13sp"
+                                    android:textStyle="bold" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:layout_marginTop="8dp"
+                            android:background="@drawable/bg_cart_field_row"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingStart="12dp"
+                            android:paddingEnd="12dp">
+
+                            <ImageView
+                                android:layout_width="24dp"
+                                android:layout_height="24dp"
+                                android:background="@drawable/bg_cart_field_icon"
+                                android:padding="5dp"
+                                android:src="@drawable/remind"
+                                app:tint="#21409A" />
+
+                            <EditText
+                                android:id="@+id/etSellerNote"
+                                android:layout_width="0dp"
+                                android:layout_height="match_parent"
+                                android:layout_marginStart="10dp"
+                                android:layout_weight="1"
+                                android:background="@android:color/transparent"
+                                android:hint="Lời nhắc cho người bán (tùy chọn)"
+                                android:inputType="text"
+                                android:singleLine="true"
+                                android:textColor="#101828"
+                                android:textColorHint="#98A2B3"
+                                android:textSize="14sp" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:layout_marginTop="8dp"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="match_parent"
+                                android:layout_weight="1"
+                                android:background="@drawable/bg_cart_field_row"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal"
+                                android:paddingStart="12dp"
+                                android:paddingEnd="10dp">
+
+                                <ImageView
+                                    android:layout_width="24dp"
+                                    android:layout_height="24dp"
+                                    android:background="@drawable/bg_cart_field_icon"
+                                    android:padding="5dp"
+                                    android:src="@drawable/ticket"
+                                    app:tint="#21409A" />
+
+                                <EditText
+                                    android:id="@+id/etDiscountCode"
+                                    android:layout_width="0dp"
+                                    android:layout_height="match_parent"
+                                    android:layout_marginStart="10dp"
+                                    android:layout_weight="1"
+                                    android:background="@android:color/transparent"
+                                    android:hint="Mã giảm"
+                                    android:inputType="textCapCharacters"
+                                    android:singleLine="true"
+                                    android:textColor="#101828"
+                                    android:textColorHint="#98A2B3"
+                                    android:textSize="14sp" />
+                            </LinearLayout>
+
+                            <TextView
+                                android:id="@+id/btnApplyDiscount"
+                                android:layout_width="86dp"
+                                android:layout_height="match_parent"
+                                android:layout_marginStart="8dp"
+                                android:background="@drawable/bg_detail_secondary_button"
+                                android:gravity="center"
+                                android:text="Áp dụng"
+                                android:textColor="#21409A"
+                                android:textSize="12sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/tvDiscountStatus"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:textColor="#667085"
+                            android:textSize="12sp"
+                            android:visibility="gone" />
+                    </LinearLayout>
+
+                </LinearLayout>
+            </LinearLayout>
+        </ScrollView>
 
         <LinearLayout
             android:id="@+id/layoutCartEmpty"
@@ -61,7 +451,7 @@
                 android:layout_height="48dp"
                 android:padding="8dp"
                 android:src="@drawable/ic_category_bag_24"
-                android:tint="#21409A" />
+                app:tint="#21409A" />
 
             <TextView
                 android:layout_width="match_parent"
@@ -83,6 +473,97 @@
                 android:textSize="14sp" />
         </LinearLayout>
 
+        <LinearLayout
+            android:id="@+id/layoutCartCheckoutBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            android:background="@drawable/bg_cart_bottom_panel"
+            android:elevation="10dp"
+            android:orientation="vertical"
+            android:paddingStart="18dp"
+            android:paddingTop="12dp"
+            android:paddingEnd="18dp"
+            android:paddingBottom="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_cart_summary_card"
+            android:orientation="vertical"
+            android:padding="12dp">
+
+            <TextView
+                android:id="@+id/tvCartSubtotal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Tạm tính: 0đ"
+                android:textColor="#667085"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/tvCartShipping"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:text="Phí ship: 0đ"
+                android:textColor="#667085"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/tvCartDiscount"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:text="Giảm: 0đ"
+                android:textColor="#667085"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Tổng cộng"
+                    android:textColor="#667085"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/tvCartTotal"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="0đ"
+                    android:textColor="#0A2A7A"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/btnCartCheckout"
+                android:layout_width="150dp"
+                android:layout_height="52dp"
+                android:background="@drawable/bg_detail_primary_button"
+                android:gravity="center"
+                android:text="Đặt hàng"
+                android:textColor="#FFFFFF"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+        </LinearLayout>
+
         <ProgressBar
             android:id="@+id/progressCart"
             android:layout_width="42dp"
@@ -91,52 +572,4 @@
             android:indeterminateTint="#21409A"
             android:visibility="gone" />
     </FrameLayout>
-
-    <LinearLayout
-        android:id="@+id/layoutCartFooter"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@drawable/bg_detail_bottom_bar"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="18dp"
-        android:paddingTop="14dp"
-        android:paddingEnd="18dp"
-        android:paddingBottom="18dp">
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Tổng cộng"
-                android:textColor="#667085"
-                android:textSize="12sp" />
-
-            <TextView
-                android:id="@+id/tvCartTotal"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="0đ"
-                android:textColor="#0A2A7A"
-                android:textSize="20sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-
-        <TextView
-            android:id="@+id/btnCartCheckout"
-            android:layout_width="150dp"
-            android:layout_height="52dp"
-            android:background="@drawable/bg_detail_primary_button"
-            android:gravity="center"
-            android:text="Đặt hàng"
-            android:textColor="#FFFFFF"
-            android:textSize="15sp"
-            android:textStyle="bold" />
-    </LinearLayout>
 </LinearLayout>

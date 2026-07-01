@@ -1,18 +1,13 @@
 package com.example.unimarket.pages.orders;
 
-import android.content.Context;
 import android.content.res.ColorStateList;
 import android.text.TextUtils;
-import android.view.ContextThemeWrapper;
 import android.view.LayoutInflater;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.widget.PopupMenu;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
@@ -32,7 +27,6 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
         void onOpen(Order order);
         void onPrimary(Order order);
         void onContact(Order order);
-        void onProduct(Order order);
     }
 
     private final List<Order> items = new ArrayList<>();
@@ -81,7 +75,6 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
         private final TextView tvOrderHint;
         private final TextView tvOrderPrice;
         private final MaterialButton btnOrderPrimary;
-        private final ImageView btnOrderMore;
         private final ShapeableImageView ivOrderProductImage;
 
         OrderViewHolder(@NonNull View itemView) {
@@ -94,7 +87,6 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
             tvOrderHint = itemView.findViewById(R.id.tvOrderHint);
             tvOrderPrice = itemView.findViewById(R.id.tvOrderPrice);
             btnOrderPrimary = itemView.findViewById(R.id.btnOrderPrimary);
-            btnOrderMore = itemView.findViewById(R.id.btnOrderMore);
             ivOrderProductImage = itemView.findViewById(R.id.ivOrderProductImage);
         }
 
@@ -123,9 +115,12 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
             }
 
             bindPrimaryButton(order, status);
-            btnOrderMore.setOnClickListener(v -> showMoreMenu(order));
-            itemView.setOnClickListener(v -> {
-                if (listener != null) listener.onOpen(order);
+            itemView.setOnClickListener(null);
+            itemView.setOnLongClickListener(v -> {
+                if (listener != null) {
+                    listener.onOpen(order);
+                }
+                return true;
             });
         }
 
@@ -138,31 +133,6 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
             });
         }
 
-        private void showMoreMenu(Order order) {
-            Context themedContext = new ContextThemeWrapper(
-                    itemView.getContext(),
-                    R.style.ThemeOverlay_UniMarket_OrderPopupMenu
-            );
-            PopupMenu menu = new PopupMenu(themedContext, btnOrderMore);
-            menu.inflate(R.menu.order_card_actions);
-            menu.setForceShowIcon(true);
-            menu.setOnMenuItemClickListener(item -> handleMoreClick(item, order));
-            menu.show();
-        }
-
-        private boolean handleMoreClick(MenuItem item, Order order) {
-            if (listener == null) return false;
-            if (item.getItemId() == R.id.actionViewProduct) {
-                listener.onProduct(order);
-                return true;
-            }
-            if (item.getItemId() == R.id.actionContact) {
-                listener.onContact(order);
-                return true;
-            }
-            return false;
-        }
-
         private String primaryLabel(String status) {
             String normalized = status.toLowerCase(Locale.ROOT);
             if (sellerMode) {
@@ -171,6 +141,7 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
                 return "";
             }
             if ("pending".equals(normalized)) return "Hủy đơn";
+            if ("confirmed".equals(normalized)) return "Cập nhật";
             if ("shipping".equals(normalized)) return "Đã nhận";
             if ("cancelled".equals(normalized)) return "Mua lại";
             return "";

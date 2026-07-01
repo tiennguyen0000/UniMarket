@@ -96,6 +96,7 @@ public class UserService extends BaseCrudService<User> {
         data.put("id", user.getId());
         data.put("full_name", user.getFull_name());
         data.put("phone", user.getPhone());
+        data.put("location", user.getLocation());
         data.put("university", user.getUniversity());
         data.put("avatar_url", user.getAvatar_url());
         data.put("role", user.getRole() != null ? user.getRole() : "user");

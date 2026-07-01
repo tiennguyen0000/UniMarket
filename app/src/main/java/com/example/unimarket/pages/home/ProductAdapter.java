@@ -57,6 +57,18 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
         void onFavoriteChanged(String productId, boolean saved);
     }
 
+    public interface OnRestockClickListener {
+        void onRestockClick(Product product);
+    }
+
+    public interface OnSellerEditClickListener {
+        void onSellerEditClick(Product product);
+    }
+
+    public interface OnSellerRemoveClickListener {
+        void onSellerRemoveClick(Product product);
+    }
+
     private final List<Product> items = new ArrayList<>();
     private final Map<String, String> categoryNameMap = new HashMap<>();
     private final Map<String, String> sellerAvatarMap = new HashMap<>();
@@ -69,6 +81,9 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
     private String currentUserId;
     private OnAdminRemoveClickListener adminRemoveClickListener;
     private OnFavoriteChangedListener favoriteChangedListener;
+    private OnRestockClickListener restockClickListener;
+    private OnSellerEditClickListener sellerEditClickListener;
+    private OnSellerRemoveClickListener sellerRemoveClickListener;
 
     public ProductAdapter(List<Product> initialItems, Map<String, String> initialCategoryNames,
                           OnProductClickListener clickListener) {
@@ -102,6 +117,15 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
             items.addAll(newItems);
         }
         notifyDataSetChanged();
+    }
+
+    public void appendItems(List<Product> newItems) {
+        if (newItems == null || newItems.isEmpty()) {
+            return;
+        }
+        int start = items.size();
+        items.addAll(newItems);
+        notifyItemRangeInserted(start, newItems.size());
     }
 
     public void setCategoryNameMap(Map<String, String> newCategoryNameMap) {
@@ -140,6 +164,18 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
         this.favoriteChangedListener = listener;
     }
 
+    public void setOnRestockClickListener(OnRestockClickListener listener) {
+        this.restockClickListener = listener;
+    }
+
+    public void setOnSellerEditClickListener(OnSellerEditClickListener listener) {
+        this.sellerEditClickListener = listener;
+    }
+
+    public void setOnSellerRemoveClickListener(OnSellerRemoveClickListener listener) {
+        this.sellerRemoveClickListener = listener;
+    }
+
     @NonNull
     @Override
     public ProductViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -163,6 +199,7 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
         private final ImageView ivSellerAvatar;
         private final TextView tvCategory;
         private final TextView tvName;
+        private final TextView tvDescription;
         private final TextView tvMeta;
         private final TextView tvPrice;
         private final TextView tvAdd;
@@ -175,6 +212,7 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
             ivSellerAvatar = itemView.findViewById(R.id.ivSellerAvatar);
             tvCategory = itemView.findViewById(R.id.tvProductCategory);
             tvName = itemView.findViewById(R.id.tvProductName);
+            tvDescription = itemView.findViewById(R.id.tvProductDescription);
             tvMeta = itemView.findViewById(R.id.tvProductMeta);
             tvPrice = itemView.findViewById(R.id.tvProductPrice);
             tvAdd = itemView.findViewById(R.id.tvAddProduct);
@@ -193,6 +231,7 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
 
             tvCategory.setText(categoryName.toUpperCase(Locale.ROOT));
             tvName.setText(productTitle);
+            bindDescription(product);
             tvMeta.setText(HomeUiUtils.formatConditionAndStatus(
                     product != null ? product.getCondition() : null,
                     product != null ? product.getStatus() : null
@@ -208,6 +247,23 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
                 }
             });
             itemView.setOnClickListener(v -> notifyProductDetailClick(product, imageUrl, categoryName));
+        }
+
+        private void bindDescription(Product product) {
+            String description = product != null ? product.getDescription() : null;
+            if (TextUtils.isEmpty(description)) {
+                tvDescription.setVisibility(View.GONE);
+                tvDescription.setText("");
+                return;
+            }
+            String trimmed = description.trim().replaceAll("\\s+", " ");
+            if (trimmed.length() < 18) {
+                tvDescription.setVisibility(View.GONE);
+                tvDescription.setText("");
+                return;
+            }
+            tvDescription.setText(trimmed);
+            tvDescription.setVisibility(View.VISIBLE);
         }
 
         private void bindProductMenu(Product product) {
@@ -248,6 +304,37 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
                         toggleFavorite(product);
                     }
             );
+            if (canEditOwnProduct(product)) {
+                addMenuAction(
+                        inflater,
+                        content,
+                        "Cập nhật tin",
+                        v -> {
+                            popupWindow.dismiss();
+                            sellerEditClickListener.onSellerEditClick(product);
+                        }
+                );
+                addMenuAction(
+                        inflater,
+                        content,
+                        "Gỡ bài",
+                        v -> {
+                            popupWindow.dismiss();
+                            sellerRemoveClickListener.onSellerRemoveClick(product);
+                        }
+                );
+            }
+            if (canRestockProduct(product)) {
+                addMenuAction(
+                        inflater,
+                        content,
+                        "Cập nhật số lượng",
+                        v -> {
+                            popupWindow.dismiss();
+                            restockClickListener.onRestockClick(product);
+                        }
+                );
+            }
             if (canAdminRemove(product)) {
                 addMenuAction(
                         inflater,
@@ -284,6 +371,23 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
             return product != null
                     && !TextUtils.isEmpty(product.getId())
                     && favoriteIds.contains(product.getId());
+        }
+
+        private boolean canRestockProduct(Product product) {
+            return restockClickListener != null
+                    && product != null
+                    && !TextUtils.isEmpty(product.getId())
+                    && !TextUtils.isEmpty(product.getSeller_id())
+                    && product.getSeller_id().equals(currentUserId);
+        }
+
+        private boolean canEditOwnProduct(Product product) {
+            return sellerEditClickListener != null
+                    && sellerRemoveClickListener != null
+                    && product != null
+                    && !TextUtils.isEmpty(product.getId())
+                    && !TextUtils.isEmpty(product.getSeller_id())
+                    && product.getSeller_id().equals(currentUserId);
         }
 
         private boolean isActiveProduct(Product product) {

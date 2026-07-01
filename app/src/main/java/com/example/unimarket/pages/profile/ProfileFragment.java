@@ -2,18 +2,24 @@ package com.example.unimarket.pages.profile;
 
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
@@ -37,6 +43,7 @@ import com.example.unimarket.data.service.ProductService;
 import com.example.unimarket.data.service.StudentVerificationService;
 import com.example.unimarket.data.service.UserService;
 import com.example.unimarket.data.service.base.AsyncCrudService;
+import com.example.unimarket.data.util.AppErrorLogger;
 import com.example.unimarket.pages.home.HomeUiUtils;
 import com.example.unimarket.pages.home.ProductDetailBottomSheetFragment;
 import com.example.unimarket.pages.post.PostListingFragment;
@@ -45,6 +52,9 @@ import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageMetadata;
+import com.google.firebase.storage.StorageReference;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -52,8 +62,10 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
+import java.util.UUID;
 
 public class ProfileFragment extends Fragment {
+    private static final String TAG = "ProfileFragment";
 
     private TextView tvName, tvUniversity, tvVerifyStatus, tvOrderCount, tvPostCount, tvRating;
     private ImageView ivAvatar, ivSettings, ivVerifyBadge;
@@ -73,7 +85,36 @@ public class ProfileFragment extends Fragment {
     private final UserService userService = new UserService();
     private final OrderService orderService = new OrderService();
     private final ProductService productService = new ProductService();
+    private final FirebaseStorage storage = FirebaseStorage.getInstance();
+    private Uri verificationFrontCardUri;
+    private Uri verificationBackCardUri;
+    private ImageView verificationFrontPreview;
+    private ImageView verificationBackPreview;
+    private TextView verificationFrontHint;
+    private TextView verificationBackHint;
+    private View verificationFrontUploadCard;
+    private View verificationBackUploadCard;
     private String currentUserId;
+
+    private final ActivityResultLauncher<String> pickFrontCardLauncher = registerForActivityResult(
+            new ActivityResultContracts.GetContent(),
+            uri -> {
+                if (uri == null) {
+                    return;
+                }
+                verificationFrontCardUri = uri;
+                bindVerificationCardPreview(true, uri);
+            });
+
+    private final ActivityResultLauncher<String> pickBackCardLauncher = registerForActivityResult(
+            new ActivityResultContracts.GetContent(),
+            uri -> {
+                if (uri == null) {
+                    return;
+                }
+                verificationBackCardUri = uri;
+                bindVerificationCardPreview(false, uri);
+            });
 
     @Nullable
     @Override
@@ -277,65 +318,207 @@ public class ProfileFragment extends Fragment {
         ProfileUiState state = profileViewModel.getUiState().getValue();
         User profile = state != null ? state.getProfile() : null;
         if (firebaseUser == null || profile == null) {
+            AppErrorLogger.append(requireContext(), "profile.verify.precheck",
+                    "Cannot open verification request. auth=" + (firebaseUser != null)
+                            + ", profile=" + (profile != null));
             Toast.makeText(requireContext(), "Vui lòng đăng nhập lại", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        LinearLayout content = new LinearLayout(requireContext());
-        content.setOrientation(LinearLayout.VERTICAL);
-        int padding = (int) (20 * getResources().getDisplayMetrics().density);
-        content.setPadding(padding, 8, padding, 0);
+        verificationFrontCardUri = null;
+        verificationBackCardUri = null;
 
-        EditText etStudentId = new EditText(requireContext());
-        etStudentId.setHint("Mã sinh viên");
-        etStudentId.setSingleLine(true);
-        content.addView(etStudentId);
+        View content = LayoutInflater.from(requireContext())
+                .inflate(R.layout.dialog_student_verification, null, false);
+        TextInputEditText etStudentId = content.findViewById(R.id.etVerificationStudentId);
+        TextInputEditText etFullName = content.findViewById(R.id.etVerificationFullName);
+        ProgressBar progress = content.findViewById(R.id.progressVerificationUpload);
+        TextView btnClose = content.findViewById(R.id.btnVerificationClose);
+        TextView btnSubmit = content.findViewById(R.id.btnVerificationSubmit);
+        verificationFrontPreview = content.findViewById(R.id.ivFrontCardPreview);
+        verificationBackPreview = content.findViewById(R.id.ivBackCardPreview);
+        verificationFrontHint = content.findViewById(R.id.tvFrontCardHint);
+        verificationBackHint = content.findViewById(R.id.tvBackCardHint);
+        verificationFrontUploadCard = content.findViewById(R.id.layoutFrontCardUpload);
+        verificationBackUploadCard = content.findViewById(R.id.layoutBackCardUpload);
+        etFullName.setText(!TextUtils.isEmpty(profile.getFull_name())
+                ? profile.getFull_name() : resolveVerificationUserName(profile, firebaseUser));
 
-        EditText etNote = new EditText(requireContext());
-        etNote.setHint("Ghi chú xác thực");
-        etNote.setMinLines(2);
-        etNote.setText(!TextUtils.isEmpty(profile.getUniversity()) ? profile.getUniversity() : "");
-        content.addView(etNote);
+        verificationFrontUploadCard.setOnClickListener(v -> pickFrontCardLauncher.launch("image/*"));
+        verificationBackUploadCard.setOnClickListener(v -> pickBackCardLauncher.launch("image/*"));
 
         AlertDialog dialog = new MaterialAlertDialogBuilder(requireContext())
-                .setTitle("Gửi yêu cầu xác thực")
                 .setView(content)
-                .setNegativeButton("Hủy", null)
-                .setPositiveButton("Gửi", null)
                 .create();
 
-        dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+        btnClose.setOnClickListener(v -> dialog.dismiss());
+        btnSubmit.setOnClickListener(v -> {
             String studentId = etStudentId.getText() != null ? etStudentId.getText().toString().trim() : "";
-            String note = etNote.getText() != null ? etNote.getText().toString().trim() : "";
+            String fullName = etFullName.getText() != null ? etFullName.getText().toString().trim() : "";
             if (TextUtils.isEmpty(studentId)) {
-                etStudentId.setError("Nhập mã sinh viên");
+                etStudentId.setError("Nhập MSSV");
+                return;
+            }
+            if (TextUtils.isEmpty(fullName)) {
+                etFullName.setError("Nhập họ và tên");
+                return;
+            }
+            if (verificationFrontCardUri == null || verificationBackCardUri == null) {
+                Toast.makeText(requireContext(), "Vui lòng chọn đủ 2 mặt thẻ sinh viên.", Toast.LENGTH_SHORT).show();
                 return;
             }
 
             StudentVerification request = new StudentVerification();
             request.setId(firebaseUser.getUid());
             request.setUser_id(firebaseUser.getUid());
+            request.setUser_name(fullName);
             request.setMethod("student_profile");
             request.setStatus("pending");
             request.setStudent_id(studentId);
-            request.setNote(note);
+            request.setNote("");
             request.setCreated_at(nowIsoUtc());
 
-            verificationService.submitRequest(request, new AsyncCrudService.ItemCallback<StudentVerification>() {
-                @Override
-                public void onSuccess(StudentVerification data) {
-                    dialog.dismiss();
-                    loadUserProfile();
-                }
-
-                @Override
-                public void onError(String error) {
-                    Toast.makeText(requireContext(), "Gửi yêu cầu thất bại: " + error, Toast.LENGTH_LONG).show();
-                }
-            });
-        }));
+            btnSubmit.setEnabled(false);
+            btnSubmit.setAlpha(0.55f);
+            progress.setVisibility(View.VISIBLE);
+            uploadVerificationImagesAndSubmit(request, verificationFrontCardUri, verificationBackCardUri, dialog,
+                    btnSubmit, progress);
+        });
 
         dialog.show();
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        }
+    }
+
+    private void bindVerificationCardPreview(boolean front, Uri uri) {
+        ImageView preview = front ? verificationFrontPreview : verificationBackPreview;
+        TextView hint = front ? verificationFrontHint : verificationBackHint;
+        View card = front ? verificationFrontUploadCard : verificationBackUploadCard;
+        if (preview == null || hint == null || card == null || uri == null || !isAdded()) {
+            return;
+        }
+        preview.setImageTintList(null);
+        preview.setPadding(0, 0, 0, 0);
+        preview.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        Glide.with(this).load(uri).centerCrop().into(preview);
+        hint.setText("Đã chọn ảnh, chạm để đổi ảnh khác");
+        card.setBackgroundResource(R.drawable.bg_verification_upload_card_selected);
+    }
+
+    private void uploadVerificationImagesAndSubmit(StudentVerification request,
+                                                   Uri frontUri,
+                                                   Uri backUri,
+                                                   AlertDialog dialog,
+                                                   View positiveButton,
+                                                   ProgressBar progress) {
+        uploadVerificationImage(request.getUser_id(), "front", frontUri, new VerificationImageUploadCallback() {
+            @Override
+            public void onSuccess(String url) {
+                request.setFront_card_url(url);
+                uploadVerificationImage(request.getUser_id(), "back", backUri, new VerificationImageUploadCallback() {
+                    @Override
+                    public void onSuccess(String url) {
+                        request.setBack_card_url(url);
+                        submitVerificationRequest(request, dialog, positiveButton, progress);
+                    }
+
+                    @Override
+                    public void onError(String error) {
+                        handleVerificationSubmitError(request.getUser_id(), "upload_back", error, positiveButton, progress);
+                    }
+                });
+            }
+
+            @Override
+            public void onError(String error) {
+                handleVerificationSubmitError(request.getUser_id(), "upload_front", error, positiveButton, progress);
+            }
+        });
+    }
+
+    private void uploadVerificationImage(String userId,
+                                         String side,
+                                         Uri fileUri,
+                                         VerificationImageUploadCallback callback) {
+        String fileName = "student_verifications/" + userId + "/" + side + "_" + UUID.randomUUID() + ".jpg";
+        StorageReference ref = storage.getReference().child(fileName);
+        StorageMetadata metadata = new StorageMetadata.Builder()
+                .setContentType("image/jpeg")
+                .build();
+        ref.putFile(fileUri, metadata).continueWithTask(task -> {
+            if (!task.isSuccessful()) {
+                throw task.getException();
+            }
+            return ref.getDownloadUrl();
+        }).addOnCompleteListener(task -> {
+            if (task.isSuccessful() && task.getResult() != null) {
+                callback.onSuccess(task.getResult().toString());
+            } else {
+                Exception exception = task.getException();
+                Log.e(TAG, "Student card upload failed: " + side, exception);
+                callback.onError(exception != null && exception.getMessage() != null
+                        ? exception.getMessage() : "Upload ảnh thất bại");
+            }
+        });
+    }
+
+    private void submitVerificationRequest(StudentVerification request,
+                                           AlertDialog dialog,
+                                           View positiveButton,
+                                           ProgressBar progress) {
+        verificationService.submitRequest(request, new AsyncCrudService.ItemCallback<StudentVerification>() {
+            @Override
+            public void onSuccess(StudentVerification data) {
+                if (!isAdded()) {
+                    return;
+                }
+                progress.setVisibility(View.GONE);
+                dialog.dismiss();
+                Toast.makeText(requireContext(), "Yêu cầu xác thực đã được gửi.", Toast.LENGTH_SHORT).show();
+                loadUserProfile();
+            }
+
+            @Override
+            public void onError(String error) {
+                handleVerificationSubmitError(request.getUser_id(), "firestore_submit", error, positiveButton, progress);
+            }
+        });
+    }
+
+    private void handleVerificationSubmitError(String userId,
+                                               String area,
+                                               String error,
+                                               View positiveButton,
+                                               ProgressBar progress) {
+        if (!isAdded()) {
+            return;
+        }
+        AppErrorLogger.append(requireContext(), "profile.verify." + area,
+                "uid=" + userId + ", error=" + error);
+        progress.setVisibility(View.GONE);
+        positiveButton.setEnabled(true);
+        positiveButton.setAlpha(1f);
+        Toast.makeText(requireContext(), "Gửi yêu cầu thất bại: " + error, Toast.LENGTH_LONG).show();
+    }
+
+    private String resolveVerificationUserName(User profile, FirebaseUser firebaseUser) {
+        if (profile != null && !TextUtils.isEmpty(profile.getFull_name())) {
+            return profile.getFull_name();
+        }
+        if (firebaseUser != null && !TextUtils.isEmpty(firebaseUser.getDisplayName())) {
+            return firebaseUser.getDisplayName();
+        }
+        if (firebaseUser != null && !TextUtils.isEmpty(firebaseUser.getEmail())) {
+            return firebaseUser.getEmail();
+        }
+        return "Người dùng";
+    }
+
+    private interface VerificationImageUploadCallback {
+        void onSuccess(String url);
+
+        void onError(String error);
     }
 
     private void showVerificationReviewDialog() {
@@ -453,21 +636,23 @@ public class ProfileFragment extends Fragment {
         TextInputEditText etFullName = dialogView.findViewById(R.id.etEditFullName);
         TextInputEditText etPhone = dialogView.findViewById(R.id.etEditPhone);
         TextInputEditText etUniversity = dialogView.findViewById(R.id.etEditUniversity);
+        TextInputEditText etLocation = dialogView.findViewById(R.id.etEditLocation);
+        TextView btnCancel = dialogView.findViewById(R.id.btnEditProfileCancel);
+        TextView btnSave = dialogView.findViewById(R.id.btnEditProfileSave);
 
         if (user != null) {
             etFullName.setText(user.getFull_name());
             etPhone.setText(user.getPhone());
             etUniversity.setText(user.getUniversity());
+            etLocation.setText(user.getLocation());
         }
 
         AlertDialog dialog = new MaterialAlertDialogBuilder(requireContext())
-                .setTitle("Chỉnh sửa hồ sơ")
                 .setView(dialogView)
-                .setNegativeButton("Hủy", null)
-                .setPositiveButton("Lưu", null)
                 .create();
 
-        dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+        btnCancel.setOnClickListener(v -> dialog.dismiss());
+        btnSave.setOnClickListener(v -> {
             FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
             if (firebaseUser == null) {
                 Toast.makeText(requireContext(), "Vui lòng đăng nhập lại", Toast.LENGTH_SHORT).show();
@@ -478,17 +663,21 @@ public class ProfileFragment extends Fragment {
             String fullName = etFullName.getText() != null ? etFullName.getText().toString().trim() : "";
             String phone = etPhone.getText() != null ? etPhone.getText().toString().trim() : "";
             String university = etUniversity.getText() != null ? etUniversity.getText().toString().trim() : "";
+            String location = etLocation.getText() != null ? etLocation.getText().toString().trim() : "";
 
             if (TextUtils.isEmpty(fullName)) {
                 etFullName.setError("Vui lòng nhập họ và tên");
                 return;
             }
 
-            profileViewModel.saveProfile(firebaseUser.getUid(), fullName, phone, university);
+            profileViewModel.saveProfile(firebaseUser.getUid(), fullName, phone, university, location);
             dialog.dismiss();
-        }));
+        });
 
         dialog.show();
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        }
     }
 
     private void shareProfile() {

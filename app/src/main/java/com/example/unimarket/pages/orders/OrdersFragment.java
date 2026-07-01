@@ -1,12 +1,15 @@
 package com.example.unimarket.pages.orders;
 
 import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -31,6 +34,7 @@ import com.example.unimarket.pages.chat.ChatBottomSheetFragment;
 import com.example.unimarket.pages.home.CartBottomSheetFragment;
 import com.example.unimarket.pages.home.CartFlow;
 import com.example.unimarket.pages.home.HomeUiUtils;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -101,7 +105,6 @@ public class OrdersFragment extends Fragment {
             @Override public void onOpen(Order order) { showOrderDetailDialog(order); }
             @Override public void onPrimary(Order order) { handlePrimaryAction(order); }
             @Override public void onContact(Order order) { openOrderChat(order); }
-            @Override public void onProduct(Order order) { openProductInSearch(order); }
         });
 
         rvOrders.setLayoutManager(new LinearLayoutManager(requireContext()));
@@ -123,6 +126,8 @@ public class OrdersFragment extends Fragment {
     }
 
     private void setupSelectors() {
+        prepareStatusButtons();
+
         btnModeBuy.setOnClickListener(v -> selectMode(false));
         btnModeSell.setOnClickListener(v -> selectMode(true));
 
@@ -133,6 +138,24 @@ public class OrdersFragment extends Fragment {
 
         selectMode(false);
         selectStatus(0);
+    }
+
+    private void prepareStatusButtons() {
+        for (TextView button : statusButtons) {
+            ViewGroup.LayoutParams params = button.getLayoutParams();
+            if (params != null) {
+                params.height = dpToPx(56);
+                button.setLayoutParams(params);
+            }
+            button.setGravity(android.view.Gravity.CENTER);
+            button.setBackgroundColor(Color.TRANSPARENT);
+            button.setCompoundDrawablePadding(dpToPx(4));
+            button.setPadding(dpToPx(14), 0, dpToPx(14), 0);
+        }
+        if (statusButtons.size() > 3) {
+            statusButtons.get(3).setText("Đang giao");
+            statusButtons.get(3).setMinWidth(dpToPx(76));
+        }
     }
 
     private void selectMode(boolean sellerMode) {
@@ -162,10 +185,35 @@ public class OrdersFragment extends Fragment {
     }
 
     private void styleStatusButton(TextView view, boolean selected) {
-        view.setBackgroundResource(selected
-                ? R.drawable.bg_orders_status_selected
-                : R.drawable.bg_orders_status_idle);
-        view.setTextColor(selected ? 0xFF1A428A : 0xFF667085);
+        int color = selected ? 0xFF21409A : 0xFF667085;
+        view.setBackgroundColor(Color.TRANSPARENT);
+        view.setTextColor(color);
+        view.setCompoundDrawables(null, tintedStatusIcon(view, color), null, null);
+    }
+
+    private Drawable tintedStatusIcon(TextView view, int color) {
+        Drawable drawable = requireContext().getDrawable(statusIconRes(view.getId()));
+        if (drawable == null) {
+            return null;
+        }
+        drawable = drawable.mutate();
+        drawable.setTint(color);
+        drawable.setBounds(0, 0, dpToPx(22), dpToPx(22));
+        return drawable;
+    }
+
+    private int statusIconRes(int viewId) {
+        if (viewId == R.id.btnStatusAll) return R.drawable.all;
+        if (viewId == R.id.btnStatusPending) return R.drawable.pending;
+        if (viewId == R.id.btnStatusConfirmed) return R.drawable.checkinbox;
+        if (viewId == R.id.btnStatusShipping) return R.drawable.shipping;
+        if (viewId == R.id.btnStatusDone) return R.drawable.get;
+        if (viewId == R.id.btnStatusCancelled) return R.drawable.cancel;
+        return R.drawable.order;
+    }
+
+    private int dpToPx(int dp) {
+        return Math.round(dp * getResources().getDisplayMetrics().density);
     }
 
     private void updateFilterSummary() {
@@ -179,7 +227,7 @@ public class OrdersFragment extends Fragment {
         switch (index) {
             case 1: return "Chờ";
             case 2: return "Đã nhận";
-            case 3: return "Giao";
+            case 3: return "Đang giao";
             case 4: return "Xong";
             case 5: return "Hủy";
             default: return "Tất cả";
@@ -254,6 +302,7 @@ public class OrdersFragment extends Fragment {
         }
 
         if ("pending".equals(status)) updateOrderStatus(order, "cancelled");
+        else if ("confirmed".equals(status)) showUpdateOrderDialog(order);
         else if ("shipping".equals(status)) updateOrderStatus(order, "done");
         else if ("cancelled".equals(status)) buyAgain(order);
     }
@@ -269,18 +318,38 @@ public class OrdersFragment extends Fragment {
         if (order.getUnit_price() != null && order.getUnit_price() > 0) {
             message.append("Đơn giá: ").append(HomeUiUtils.formatPrice(order.getUnit_price())).append("\n");
         }
+        message.append("Tạm tính: ").append(money(
+                order.getSubtotal_price() != null ? order.getSubtotal_price() : safeDouble(order.getUnit_price()) * (order.getQuantity() != null ? order.getQuantity() : 1)
+        )).append("\n");
+        message.append("Phí ship: ").append(money(safeDouble(order.getShipping_fee()))).append("\n");
+        message.append("Phương thức ship: ").append(shippingLabel(order.getShipping_method())).append("\n");
+        if (!TextUtils.isEmpty(order.getBuyer_phone())) {
+            message.append("SĐT nhận hàng: ").append(order.getBuyer_phone()).append("\n");
+        }
+        if (!TextUtils.isEmpty(order.getDelivery_location())) {
+            message.append("Vị trí nhận hàng: ").append(order.getDelivery_location()).append("\n");
+        }
+        if (!TextUtils.isEmpty(order.getBuyer_note())) {
+            message.append("Lời nhắc: ").append(order.getBuyer_note()).append("\n");
+        }
         if (!TextUtils.isEmpty(order.getDiscount_code()) || safeDouble(order.getDiscount_amount()) > 0) {
             message.append("Mã giảm: ")
                     .append(!TextUtils.isEmpty(order.getDiscount_code()) ? order.getDiscount_code() : "Đã áp dụng")
                     .append("\n");
-            message.append("Giảm: ").append(HomeUiUtils.formatPrice(order.getDiscount_amount())).append("\n");
+            message.append("Giảm: ").append(money(safeDouble(order.getDiscount_amount()))).append("\n");
         }
-        message.append("Tổng thanh toán: ").append(HomeUiUtils.formatPrice(order.getTotal_price()));
+        if (sellerMode) {
+            double sellerAmount = order.getSeller_amount() != null
+                    ? order.getSeller_amount()
+                    : safeDouble(order.getSubtotal_price());
+            message.append("Người bán nhận: ").append(money(sellerAmount)).append("\n");
+        }
+        message.append("Tổng thanh toán: ").append(money(safeDouble(order.getTotal_price())));
 
         MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(requireContext())
                 .setTitle("Chi tiết " + shortOrderId(order))
                 .setMessage(message.toString())
-                .setNegativeButton("Đóng", null)
+                .setNegativeButton("Xem tin", (dialog, which) -> openProductInSearch(order))
                 .setPositiveButton("Liên hệ", (dialog, which) -> openOrderChat(order));
 
         String status = safeStatus(order);
@@ -288,10 +357,128 @@ public class OrdersFragment extends Fragment {
             builder.setNeutralButton("Từ chối", (dialog, which) -> updateOrderStatus(order, "cancelled"));
         } else if (sellerMode && "confirmed".equals(status)) {
             builder.setNeutralButton("Hủy đơn", (dialog, which) -> updateOrderStatus(order, "cancelled"));
+        } else if (!sellerMode && canBuyerUpdate(order)) {
+            builder.setNeutralButton("Cập nhật", (dialog, which) -> showUpdateOrderDialog(order));
         } else if (!sellerMode && "cancelled".equals(status)) {
             builder.setNeutralButton("Mua lại", (dialog, which) -> buyAgain(order));
         }
         builder.show();
+    }
+
+    private boolean canBuyerUpdate(Order order) {
+        if (order == null) return false;
+        String status = safeStatus(order);
+        return "pending".equals(status) || "confirmed".equals(status);
+    }
+
+    private void showUpdateOrderDialog(Order order) {
+        if (!canBuyerUpdate(order)) {
+            Toast.makeText(requireContext(), "Đơn đã vào bước giao, không thể cập nhật.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        BottomSheetDialog sheet = new BottomSheetDialog(requireContext());
+        View content = LayoutInflater.from(requireContext())
+                .inflate(R.layout.bottom_sheet_order_update, null, false);
+        sheet.setContentView(content);
+
+        EditText phoneInput = content.findViewById(R.id.etOrderUpdatePhone);
+        EditText locationInput = content.findViewById(R.id.etOrderUpdateLocation);
+        EditText noteInput = content.findViewById(R.id.etOrderUpdateNote);
+        View standard = content.findViewById(R.id.btnOrderUpdateStandard);
+        View express = content.findViewById(R.id.btnOrderUpdateExpress);
+        View close = content.findViewById(R.id.btnOrderUpdateClose);
+        View save = content.findViewById(R.id.btnOrderUpdateSave);
+        String[] selectedShipping = {
+                "express".equalsIgnoreCase(order.getShipping_method()) ? "express" : "standard"
+        };
+
+        phoneInput.setText(!TextUtils.isEmpty(order.getBuyer_phone()) ? order.getBuyer_phone() : "");
+        locationInput.setText(!TextUtils.isEmpty(order.getDelivery_location()) ? order.getDelivery_location() : "");
+        noteInput.setText(!TextUtils.isEmpty(order.getBuyer_note()) ? order.getBuyer_note() : "");
+        bindOrderUpdateShipping(content, selectedShipping[0]);
+        standard.setOnClickListener(v -> {
+            selectedShipping[0] = "standard";
+            bindOrderUpdateShipping(content, selectedShipping[0]);
+        });
+        express.setOnClickListener(v -> {
+            selectedShipping[0] = "express";
+            bindOrderUpdateShipping(content, selectedShipping[0]);
+        });
+        close.setOnClickListener(v -> sheet.dismiss());
+        save.setOnClickListener(v -> {
+            saveBuyerOrderUpdate(
+                    order,
+                    phoneInput.getText() != null ? phoneInput.getText().toString().trim() : "",
+                    locationInput.getText() != null ? locationInput.getText().toString().trim() : "",
+                    selectedShipping[0],
+                    noteInput.getText() != null ? noteInput.getText().toString().trim() : "");
+            sheet.dismiss();
+        });
+
+        sheet.show();
+    }
+    private void bindOrderUpdateShipping(View root, String selectedMethod) {
+        boolean standardSelected = !"express".equalsIgnoreCase(selectedMethod);
+        bindOrderUpdateShippingOption(
+                root.findViewById(R.id.ivOrderUpdateStandardIcon),
+                root.findViewById(R.id.tvOrderUpdateStandardTitle),
+                root.findViewById(R.id.tvOrderUpdateStandardDetail),
+                root.findViewById(R.id.tvOrderUpdateStandardFee),
+                standardSelected
+        );
+        bindOrderUpdateShippingOption(
+                root.findViewById(R.id.ivOrderUpdateExpressIcon),
+                root.findViewById(R.id.tvOrderUpdateExpressTitle),
+                root.findViewById(R.id.tvOrderUpdateExpressDetail),
+                root.findViewById(R.id.tvOrderUpdateExpressFee),
+                !standardSelected
+        );
+    }
+
+    private void bindOrderUpdateShippingOption(ImageView icon, TextView title, TextView detail,
+                                               TextView fee, boolean selected) {
+        int color = selected ? 0xFF21409A : 0xFF667085;
+        icon.setColorFilter(color);
+        title.setTextColor(color);
+        detail.setTextColor(color);
+        fee.setTextColor(color);
+    }
+
+    private void saveBuyerOrderUpdate(Order order, String phone, String location,
+                                      String shippingMethod, String note) {
+        if (TextUtils.isEmpty(phone) || TextUtils.isEmpty(location)) {
+            Toast.makeText(requireContext(), "Vui lòng nhập đủ SĐT và vị trí nhận hàng.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (!canBuyerUpdate(order)) {
+            Toast.makeText(requireContext(), "Đơn đã vào bước giao, không thể cập nhật.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        double newShippingFee = "express".equals(shippingMethod) ? 25000d : 10000d;
+        double subtotal = order.getSubtotal_price() != null
+                ? order.getSubtotal_price()
+                : safeDouble(order.getUnit_price()) * (order.getQuantity() != null ? order.getQuantity() : 1);
+        double discount = safeDouble(order.getDiscount_amount());
+
+        order.setBuyer_phone(phone);
+        order.setDelivery_location(location);
+        order.setShipping_method(shippingMethod);
+        order.setShipping_fee(newShippingFee);
+        order.setBuyer_note(note);
+        order.setTotal_price(Math.max(0d, subtotal + newShippingFee - discount));
+        order.setUpdated_at(nowIsoUtc());
+
+        orderService.save(order, result -> {
+            if (!isAdded()) return;
+            if (result.isSuccess()) {
+                Toast.makeText(requireContext(), "Đã cập nhật đơn hàng.", Toast.LENGTH_SHORT).show();
+                reloadOrders();
+            } else {
+                Toast.makeText(requireContext(), "Không thể cập nhật đơn hàng.", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void updateOrderStatus(Order order, String newStatus) {
@@ -310,22 +497,22 @@ public class OrdersFragment extends Fragment {
     }
 
     private void afterOrderStatusChanged(Order order, String oldStatus, String newStatus) {
-        if (sellerMode && "confirmed".equals(newStatus)) {
-            setProductStatus(order, "sold");
-            return;
-        }
-        if (sellerMode && "cancelled".equals(newStatus) && !"pending".equals(oldStatus)) {
-            setProductStatus(order, "active");
+        if ("done".equals(newStatus) && !"done".equals(oldStatus)) {
+            decrementProductQuantity(order);
             return;
         }
         reloadOrders();
     }
 
-    private void setProductStatus(Order order, String status) {
+    private void decrementProductQuantity(Order order) {
         fetchProduct(order, new ProductCallback() {
             @Override
             public void onSuccess(Product product) {
-                product.setStatus(status);
+                int currentQuantity = product.getQuantity() != null ? Math.max(0, product.getQuantity()) : 1;
+                int orderedQuantity = order.getQuantity() != null ? Math.max(1, order.getQuantity()) : 1;
+                int remaining = Math.max(0, currentQuantity - orderedQuantity);
+                product.setQuantity(remaining);
+                product.setStatus(remaining > 0 ? "active" : "hidden");
                 product.setUpdated_at(nowIsoUtc());
                 productService.save(product, ignored -> {
                     if (isAdded()) reloadOrders();
@@ -483,6 +670,16 @@ public class OrdersFragment extends Fragment {
 
     private double safeDouble(Double value) {
         return value != null ? value : 0d;
+    }
+
+    private String shippingLabel(String method) {
+        if ("express".equalsIgnoreCase(method)) return "Hỏa tốc";
+        if ("standard".equalsIgnoreCase(method)) return "Giao thường";
+        return TextUtils.isEmpty(method) ? "Chưa ghi nhận" : method;
+    }
+
+    private String money(double amount) {
+        return amount <= 0d ? "0đ" : HomeUiUtils.formatPrice(amount);
     }
 
     private String firstImage(Product product, Order order) {

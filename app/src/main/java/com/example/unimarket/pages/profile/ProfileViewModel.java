@@ -174,7 +174,7 @@ public class ProfileViewModel extends ViewModel {
         });
     }
 
-    public void saveProfile(String userId, String fullName, String phone, String university) {
+    public void saveProfile(String userId, String fullName, String phone, String university, String location) {
         updateState(null, null, true, null, null, null, null, null);
 
         User currentProfile = uiState.getValue() != null ? uiState.getValue().getProfile() : null;
@@ -183,6 +183,7 @@ public class ProfileViewModel extends ViewModel {
         updatedUser.setFull_name(fullName);
         updatedUser.setPhone(phone);
         updatedUser.setUniversity(university);
+        updatedUser.setLocation(location);
 
         if (currentProfile != null) {
             updatedUser.setAvatar_url(currentProfile.getAvatar_url());

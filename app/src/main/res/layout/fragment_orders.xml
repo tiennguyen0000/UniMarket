@@ -3,22 +3,29 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F4F7FC">
+    android:background="#F4F7FC"
+    android:clipChildren="false"
+    android:clipToPadding="false">
 
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/white"
-        app:elevation="0dp">
+        android:background="#F4F7FC"
+        android:backgroundTint="#F4F7FC"
+        android:elevation="0dp"
+        android:stateListAnimator="@null"
+        app:elevation="0dp"
+        app:liftOnScroll="false">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:background="#F4F7FC"
             android:orientation="vertical"
             android:paddingStart="20dp"
-            android:paddingTop="12dp"
+            android:paddingTop="8dp"
             android:paddingEnd="20dp"
-            android:paddingBottom="14dp">
+            android:paddingBottom="10dp">
 
             <TextView
                 android:layout_width="match_parent"
@@ -26,29 +33,28 @@
                 android:text="Đơn hàng"
                 android:textColor="@color/text_primary"
                 android:textSize="24sp"
-                android:textStyle="bold" />
+                android:textStyle="bold"
+                android:visibility="gone" />
 
-            <com.google.android.material.card.MaterialCardView
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                app:cardBackgroundColor="@android:color/white"
-                app:cardCornerRadius="24dp"
-                app:cardElevation="0dp"
-                app:strokeColor="#E9EEF7"
-                app:strokeWidth="1dp">
+                android:layout_marginTop="0dp"
+                android:background="#F4F7FC"
+                android:orientation="vertical">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="14dp">
+                    android:padding="0dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:gravity="center_vertical"
-                        android:orientation="horizontal">
+                        android:orientation="horizontal"
+                        android:visibility="gone">
 
                         <LinearLayout
                             android:layout_width="0dp"
@@ -91,7 +97,7 @@
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="14dp"
+                        android:layout_marginTop="0dp"
                         android:background="@drawable/bg_orders_mode_container"
                         android:orientation="horizontal"
                         android:padding="4dp">
@@ -195,7 +201,7 @@
                                 android:minWidth="60dp"
                                 android:paddingStart="14dp"
                                 android:paddingEnd="14dp"
-                                android:text="Giao"
+                                android:text="Đang giao"
                                 android:textColor="#667085"
                                 android:textSize="13sp"
                                 android:textStyle="bold" />
@@ -232,25 +238,30 @@
                         </LinearLayout>
                     </HorizontalScrollView>
                 </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
         </LinearLayout>
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:background="#F4F7FC"
+        android:clipChildren="false"
         android:clipToPadding="false"
-        android:paddingBottom="110dp"
+        android:paddingBottom="150dp"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:background="#F4F7FC"
+            android:clipChildren="false"
+            android:clipToPadding="false"
             android:orientation="vertical"
             android:paddingStart="16dp"
             android:paddingTop="14dp"
             android:paddingEnd="16dp"
-            android:paddingBottom="18dp">
+            android:paddingBottom="40dp">
 
             <LinearLayout
                 android:id="@+id/layoutOrdersLoading"
@@ -281,6 +292,8 @@
                 android:id="@+id/rvOrders"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:clipChildren="false"
+                android:clipToPadding="false"
                 android:nestedScrollingEnabled="false" />
 
             <LinearLayout
@@ -290,7 +303,7 @@
                 android:gravity="center"
                 android:orientation="vertical"
                 android:paddingTop="76dp"
-                android:paddingBottom="90dp"
+                android:paddingBottom="150dp"
                 android:visibility="gone">
 
                 <ImageView

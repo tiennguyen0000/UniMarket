@@ -1,9 +1,14 @@
 package com.example.unimarket;
 
+import android.content.Context;
 import android.graphics.Color;
+import android.graphics.Rect;
 import android.os.Build;
 import android.os.Bundle;
+import android.view.MotionEvent;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -12,8 +17,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.navigation.NavController;
 import androidx.navigation.NavDestination;
 import androidx.navigation.fragment.NavHostFragment;
-
-import com.example.unimarket.pages.chat.ChatInboxBottomSheetFragment;
 
 public class Controller extends AppCompatActivity {
 	private static final int TAB_SELECTED_COLOR = 0xFF21409A;
@@ -47,6 +50,7 @@ public class Controller extends AppCompatActivity {
 		super.onCreate(savedInstanceState);
 		setupLightSystemBars();
 		setContentView(R.layout.activity_controller);
+		applyTopSystemInsetOnly();
 
 		initViews();
 
@@ -71,8 +75,32 @@ public class Controller extends AppCompatActivity {
 		}
 	}
 
+	@Override
+	public boolean dispatchTouchEvent(MotionEvent event) {
+		if (event.getAction() == MotionEvent.ACTION_DOWN) {
+			View focusedView = getCurrentFocus();
+			if (focusedView instanceof EditText) {
+				Rect hitRect = new Rect();
+				focusedView.getGlobalVisibleRect(hitRect);
+				if (!hitRect.contains((int) event.getRawX(), (int) event.getRawY())) {
+					focusedView.clearFocus();
+					hideKeyboard(focusedView);
+				}
+			}
+		}
+		return super.dispatchTouchEvent(event);
+	}
+
+	private void hideKeyboard(View view) {
+		InputMethodManager inputMethodManager =
+				(InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+		if (inputMethodManager != null) {
+			inputMethodManager.hideSoftInputFromWindow(view.getWindowToken(), 0);
+		}
+	}
+
 	private void setupLightSystemBars() {
-		getWindow().setStatusBarColor(Color.WHITE);
+		getWindow().setStatusBarColor(Color.TRANSPARENT);
 		getWindow().setNavigationBarColor(Color.WHITE);
 
 		int flags = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
@@ -80,6 +108,18 @@ public class Controller extends AppCompatActivity {
 			flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
 		}
 		getWindow().getDecorView().setSystemUiVisibility(flags);
+	}
+
+	private void applyTopSystemInsetOnly() {
+		View root = findViewById(R.id.controllerRoot);
+		if (root == null) {
+			return;
+		}
+		root.setOnApplyWindowInsetsListener((view, insets) -> {
+			view.setPadding(0, insets.getSystemWindowInsetTop(), 0, 0);
+			return insets;
+		});
+		root.requestApplyInsets();
 	}
 
 	private void initViews() {
@@ -112,8 +152,7 @@ public class Controller extends AppCompatActivity {
 		tabOrders.setOnClickListener(v -> navigateTo(R.id.ordersFragment));
 		tabProfile.setOnClickListener(v -> navigateTo(R.id.profileFragment));
 		imageViewMenu.setOnClickListener(v -> navigateTo(R.id.postListingFragment));
-		imageViewChatInbox.setOnClickListener(v ->
-				new ChatInboxBottomSheetFragment().show(getSupportFragmentManager(), "controller_chat_inbox"));
+		imageViewChatInbox.setVisibility(View.GONE);
 	}
 
 	private void navigateTo(int destinationId) {
@@ -132,6 +171,7 @@ public class Controller extends AppCompatActivity {
 	private void updateTabSelection(NavDestination destination) {
 		int destinationId = destination.getId();
 		View bottomNav = findViewById(R.id.bottomNavCard);
+		View bottomNavScrim = findViewById(R.id.bottomNavScrim);
 
 		boolean fullScreen = destinationId == R.id.postListingFragment
 				|| destinationId == R.id.adminConsoleFragment;
@@ -140,12 +180,14 @@ public class Controller extends AppCompatActivity {
 
 		if (fullScreen) {
 			bottomNav.setVisibility(View.GONE);
+			bottomNavScrim.setVisibility(View.GONE);
 			imageViewMenu.setVisibility(View.GONE);
 			imageViewChatInbox.setVisibility(View.GONE);
 		} else {
 			bottomNav.setVisibility(View.VISIBLE);
+			bottomNavScrim.setVisibility(View.VISIBLE);
 			imageViewMenu.setVisibility(View.VISIBLE);
-			imageViewChatInbox.setVisibility(profile ? View.GONE : View.VISIBLE);
+			imageViewChatInbox.setVisibility(View.GONE);
 		}
 
 		setTabSelected(ivTabHome, tvTabHome, destinationId == R.id.homeFragment);

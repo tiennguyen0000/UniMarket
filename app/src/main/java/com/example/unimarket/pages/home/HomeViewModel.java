@@ -28,21 +28,60 @@ public class HomeViewModel extends ViewModel {
     private final MutableLiveData<HomeUiState> uiState = new MutableLiveData<>(HomeUiState.initial());
     private final MutableLiveData<HomeUiEvent> uiEvent = new MutableLiveData<>();
     private int pendingRequests = 0;
+    private boolean homeLoaded = false;
+    private boolean catalogLoaded = false;
+    private boolean homeRequestInFlight = false;
+    private boolean catalogRequestInFlight = false;
 
     public LiveData<HomeUiState> getUiState() { return uiState; }
     public LiveData<HomeUiEvent> getUiEvent() { return uiEvent; }
 
     public void loadHomeData() {
+        loadHomeData(false);
+    }
+
+    public void refreshHomeData() {
+        loadHomeData(true);
+    }
+
+    public void refreshCatalogData() {
+        loadData(null, true);
+    }
+
+    private void loadHomeData(boolean forceRefresh) {
+        HomeUiState current = uiState.getValue();
+        if (!forceRefresh && (homeLoaded || (current != null && !current.getCategories().isEmpty()))) {
+            updateState(false, null, null, null);
+            return;
+        }
+        if (homeRequestInFlight || catalogRequestInFlight) {
+            return;
+        }
+        homeRequestInFlight = true;
         pendingRequests = 1;
         updateState(true, null, null, null);
         loadCategories();
     }
 
     public void loadCatalogData() {
-        loadData(null);
+        loadData(null, false);
     }
 
-    private void loadData(Integer productLimit) {
+    private void loadData(Integer productLimit, boolean forceRefresh) {
+        if (!forceRefresh && catalogLoaded) {
+            updateState(false, null, null, null);
+            return;
+        }
+        if (catalogRequestInFlight) {
+            return;
+        }
+        catalogRequestInFlight = true;
+        if (homeRequestInFlight) {
+            pendingRequests = Math.max(pendingRequests, 1) + 1;
+            updateState(true, null, null, null);
+            loadProducts(productLimit);
+            return;
+        }
         pendingRequests = REQUEST_COUNT;
         updateState(true, null, null, null);
         loadCategories();
@@ -68,7 +107,7 @@ public class HomeViewModel extends ViewModel {
 
             List<Product> sortedProducts = new ArrayList<>();
             for (Product product : data) {
-                if (isBrowsableProduct(product)) {
+                if (product != null) {
                     sortedProducts.add(product);
                 }
             }
@@ -117,7 +156,15 @@ public class HomeViewModel extends ViewModel {
 
     private void finishRequest() {
         pendingRequests--;
-        if (pendingRequests <= 0) updateState(false, null, null, null);
+        if (pendingRequests <= 0) {
+            homeLoaded = true;
+            homeRequestInFlight = false;
+            if (catalogRequestInFlight) {
+                catalogLoaded = true;
+                catalogRequestInFlight = false;
+            }
+            updateState(false, null, null, null);
+        }
     }
 
     private void updateState(Boolean loading, List<Category> categories, List<Product> products,
@@ -146,19 +193,6 @@ public class HomeViewModel extends ViewModel {
             return product.getCreated_at();
         }
         return product.getId() != null ? product.getId() : "";
-    }
-
-    private boolean isBrowsableProduct(Product product) {
-        if (product == null) {
-            return false;
-        }
-        String status = product.getStatus() != null
-                ? product.getStatus().trim().toLowerCase(java.util.Locale.ROOT)
-                : "active";
-        return status.isEmpty()
-                || status.equals("active")
-                || status.equals("available")
-                || status.equals("pending");
     }
 
 }

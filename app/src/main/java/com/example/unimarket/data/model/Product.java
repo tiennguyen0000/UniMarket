@@ -9,6 +9,7 @@ public class  Product implements Serializable {
     private String title;
     private String description;
     private Double price;
+    private Integer quantity;
     private String category_id;
     private String condition;
     private String status;
@@ -48,6 +49,8 @@ public class  Product implements Serializable {
     public void setDescription(String description) { this.description = description; }
     public Double getPrice() { return price; }
     public void setPrice(Double price) { this.price = price; }
+    public Integer getQuantity() { return quantity; }
+    public void setQuantity(Integer quantity) { this.quantity = quantity; }
     public String getCategory_id() { return category_id; }
     public void setCategory_id(String category_id) { this.category_id = category_id; }
     public String getCondition() { return condition; }

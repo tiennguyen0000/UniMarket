@@ -22,6 +22,14 @@ service firebase.storage {
         && request.resource.contentType.matches('image/.*');
     }
 
+    match /student_verifications/{userId}/{fileName} {
+      allow read: if signedIn();
+      allow write: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
     match /{allPaths=**} {
       allow read: if true;
       allow write: if false;

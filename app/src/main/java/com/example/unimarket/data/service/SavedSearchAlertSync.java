@@ -8,6 +8,7 @@ import com.example.unimarket.data.model.Product;
 import com.example.unimarket.data.model.SavedSearch;
 import com.example.unimarket.data.model.Wishlist;
 import com.example.unimarket.data.service.base.AsyncCrudService;
+import com.example.unimarket.data.service.base.ResultCallback;
 import com.example.unimarket.data.util.FirestoreIds;
 import com.example.unimarket.pages.search.SavedSearchMatcher;
 

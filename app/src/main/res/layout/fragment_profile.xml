@@ -14,7 +14,7 @@
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:paddingBottom="24dp">
+            android:paddingBottom="150dp">
 
             <!-- Blue Header Background -->
             <View
@@ -62,7 +62,7 @@
                 android:layout_marginTop="-100dp"
                 android:layout_marginEnd="16dp"
                 app:cardBackgroundColor="@color/white"
-                app:cardCornerRadius="24dp"
+                app:cardCornerRadius="8dp"
                 app:cardElevation="4dp"
                 app:strokeColor="#E6ECF5"
                 app:strokeWidth="1dp"
@@ -374,7 +374,7 @@
                 android:layout_marginTop="16dp"
                 android:layout_marginEnd="16dp"
                 app:cardBackgroundColor="@color/white"
-                app:cardCornerRadius="22dp"
+                app:cardCornerRadius="8dp"
                 app:cardElevation="3dp"
                 app:layout_constraintTop_toBottomOf="@id/cardProfile"
                 app:strokeColor="#E6ECF5"
@@ -435,7 +435,7 @@
                 android:layout_marginEnd="16dp"
                 android:visibility="gone"
                 app:cardBackgroundColor="@color/white"
-                app:cardCornerRadius="22dp"
+                app:cardCornerRadius="8dp"
                 app:cardElevation="3dp"
                 app:layout_constraintTop_toBottomOf="@id/cardSavedSearches"
                 app:strokeColor="#E6ECF5"

@@ -1,21 +1,35 @@
 *.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
 .DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+
+# Gradle / Android build outputs
+.gradle/
+/build/
+**/build/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Android Studio local state
+.idea/
 local.properties
+
+# Firebase and local secrets
 google-services.json
+**/google-services.json
+*serviceAccount*.json
+*serviceAccount*.txt
 app/serviceAccountKey.txt
 /tools/seed/serviceAccountKey.json
 tools/serviceAccountKey.txt
+
+# Node/script dependencies and generated helpers
+node_modules/
 tools/node_modules/
-docs
+tools/tmp_*/
+tools/*.java
+*.class
+*.log
+
+# Local screenshots/report exports
+manhinh/
+docs/

@@ -5,7 +5,6 @@ import com.example.unimarket.data.service.base.AsyncCrudService;
 import com.example.unimarket.data.service.base.BaseCrudService;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
-import com.google.firebase.firestore.SetOptions;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,15 +13,15 @@ public class StudentVerificationService extends BaseCrudService<StudentVerificat
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
 
     public void submitRequest(StudentVerification request, AsyncCrudService.ItemCallback<StudentVerification> callback) {
-        if (request == null || request.getId() == null || request.getId().isEmpty()) {
+        if (request == null || request.getUser_id() == null || request.getUser_id().isEmpty()) {
             if (callback != null) callback.onError("Thiếu mã yêu cầu xác thực.");
             return;
         }
 
         db.collection(getTableName())
-                .document(request.getId())
-                .set(request, SetOptions.merge())
-                .addOnSuccessListener(unused -> {
+                .add(request)
+                .addOnSuccessListener(documentReference -> {
+                    request.setId(documentReference.getId());
                     if (callback != null) callback.onSuccess(request);
                 })
                 .addOnFailureListener(e -> {

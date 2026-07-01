@@ -48,6 +48,7 @@ public class LoginActivity extends AppCompatActivity {
     // Firebase SDK
     private FirebaseAuth mAuth;
     private GoogleSignInClient googleSignInClient;
+    private boolean googleSignInConfigured;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -144,8 +145,6 @@ public class LoginActivity extends AppCompatActivity {
         tvForgotPassword = findViewById(R.id.tvForgotPassword);
         tvRegister = findViewById(R.id.tvRegister);
         progressBar = findViewById(R.id.progressBar);
-
-        findViewById(R.id.btnBack).setOnClickListener(v -> onBackPressed());
     }
 
     private void setupGoogleSignIn() {
@@ -155,12 +154,15 @@ public class LoginActivity extends AppCompatActivity {
 
         int webClientIdRes = getResources().getIdentifier(
                 "default_web_client_id", "string", getPackageName());
-        if (webClientIdRes != 0) {
-            gsoBuilder.requestIdToken(getString(webClientIdRes));
+        String webClientId = webClientIdRes != 0 ? getString(webClientIdRes) : "";
+        googleSignInConfigured = !TextUtils.isEmpty(webClientId);
+        if (googleSignInConfigured) {
+            gsoBuilder.requestIdToken(webClientId);
         }
 
         GoogleSignInOptions gso = gsoBuilder.build();
         googleSignInClient = GoogleSignIn.getClient(this, gso);
+        updateGoogleButtonState();
     }
 
     private void setupListeners() {
@@ -258,9 +260,17 @@ public class LoginActivity extends AppCompatActivity {
 
     // ─── GOOGLE SIGN-IN ───────────────────────────────────────────────────────
     private void signInWithGoogle() {
+        if (!googleSignInConfigured) {
+            Toast.makeText(this,
+                    "Google Sign-In chưa có OAuth client trong google-services.json.",
+                    Toast.LENGTH_LONG).show();
+            return;
+        }
         setLoading(true);
-        Intent signInIntent = googleSignInClient.getSignInIntent();
-        startActivityForResult(signInIntent, RC_GOOGLE_SIGN_IN);
+        googleSignInClient.signOut().addOnCompleteListener(task -> {
+            Intent signInIntent = googleSignInClient.getSignInIntent();
+            startActivityForResult(signInIntent, RC_GOOGLE_SIGN_IN);
+        });
     }
 
     @Override
@@ -270,7 +280,7 @@ public class LoginActivity extends AppCompatActivity {
             Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
             try {
                 GoogleSignInAccount account = task.getResult(ApiException.class);
-                String idToken = account.getIdToken();
+                String idToken = account != null ? account.getIdToken() : null;
                 if (idToken == null) {
                     setLoading(false);
                     Toast.makeText(this,
@@ -380,8 +390,20 @@ public class LoginActivity extends AppCompatActivity {
     private void setLoading(boolean isLoading) {
         progressBar.setVisibility(isLoading ? View.VISIBLE : View.GONE);
         btnLogin.setEnabled(!isLoading);
-        btnGoogleLogin.setEnabled(!isLoading);
+        btnGoogleLogin.setEnabled(!isLoading && googleSignInConfigured);
         btnLogin.setText(isLoading ? "Đang đăng nhập..." : "Đăng nhập");
+        btnGoogleLogin.setAlpha(googleSignInConfigured && !isLoading ? 1f : 0.55f);
+    }
+
+    private void updateGoogleButtonState() {
+        if (btnGoogleLogin == null) {
+            return;
+        }
+        btnGoogleLogin.setEnabled(googleSignInConfigured);
+        btnGoogleLogin.setAlpha(googleSignInConfigured ? 1f : 0.55f);
+        btnGoogleLogin.setText(googleSignInConfigured
+                ? getString(R.string.auth_continue_with_google)
+                : "Google chưa cấu hình");
     }
 
     private abstract static class SimpleTextWatcher implements android.text.TextWatcher {
